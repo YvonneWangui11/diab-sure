@@ -1,0 +1,357 @@
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Utensils, Plus, Target, Apple, Clock } from "lucide-react";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, Sphere, Box } from "@react-three/drei";
+
+const NutritionScene = () => (
+  <Canvas camera={{ position: [0, 0, 5] }}>
+    <ambientLight intensity={0.5} />
+    <pointLight position={[10, 10, 10]} />
+    <OrbitControls enableZoom={false} autoRotate autoRotateSpeed={2} />
+    <Sphere args={[1, 32, 32]} position={[-2, 0, 0]}>
+      <meshStandardMaterial color="#ef4444" />
+    </Sphere>
+    <Box args={[1.5, 1.5, 1.5]} position={[2, 0, 0]}>
+      <meshStandardMaterial color="#22c55e" />
+    </Box>
+    <Sphere args={[0.8, 32, 32]} position={[0, -2, 0]}>
+      <meshStandardMaterial color="#f59e0b" />
+    </Sphere>
+  </Canvas>
+);
+
+interface MealLog {
+  id: string;
+  name: string;
+  calories: number;
+  carbs: number;
+  protein: number;
+  fat: number;
+  time: string;
+  type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+}
+
+const mealPlans = [
+  {
+    id: 1,
+    name: "Low Carb Mediterranean",
+    description: "Perfect for diabetes management with healthy fats and proteins",
+    calories: 1800,
+    carbs: 45,
+    meals: [
+      { name: "Greek Yogurt with Berries", type: "Breakfast", calories: 250 },
+      { name: "Grilled Chicken Salad", type: "Lunch", calories: 400 },
+      { name: "Baked Salmon with Vegetables", type: "Dinner", calories: 450 },
+      { name: "Mixed Nuts", type: "Snack", calories: 200 }
+    ]
+  },
+  {
+    id: 2,
+    name: "Balanced Diabetic Plan",
+    description: "Carefully portioned meals to maintain stable blood sugar",
+    calories: 2000,
+    carbs: 50,
+    meals: [
+      { name: "Oatmeal with Almonds", type: "Breakfast", calories: 300 },
+      { name: "Turkey Wrap with Vegetables", type: "Lunch", calories: 450 },
+      { name: "Lean Beef with Sweet Potato", type: "Dinner", calories: 500 },
+      { name: "Apple with Peanut Butter", type: "Snack", calories: 180 }
+    ]
+  }
+];
+
+export const NutritionTracking = () => {
+  const [mealLogs, setMealLogs] = useState<MealLog[]>([]);
+  const [newMeal, setNewMeal] = useState({
+    name: "",
+    calories: "",
+    carbs: "",
+    protein: "",
+    fat: "",
+    type: "breakfast" as const
+  });
+
+  const dailyTargets = {
+    calories: 2000,
+    carbs: 250,
+    protein: 150,
+    fat: 65
+  };
+
+  const totalNutrition = mealLogs.reduce(
+    (total, meal) => ({
+      calories: total.calories + meal.calories,
+      carbs: total.carbs + meal.carbs,
+      protein: total.protein + meal.protein,
+      fat: total.fat + meal.fat
+    }),
+    { calories: 0, carbs: 0, protein: 0, fat: 0 }
+  );
+
+  const addMeal = () => {
+    if (!newMeal.name || !newMeal.calories) return;
+
+    const meal: MealLog = {
+      id: Date.now().toString(),
+      name: newMeal.name,
+      calories: Number(newMeal.calories),
+      carbs: Number(newMeal.carbs) || 0,
+      protein: Number(newMeal.protein) || 0,
+      fat: Number(newMeal.fat) || 0,
+      time: new Date().toLocaleTimeString(),
+      type: newMeal.type
+    };
+
+    setMealLogs([...mealLogs, meal]);
+    setNewMeal({
+      name: "",
+      calories: "",
+      carbs: "",
+      protein: "",
+      fat: "",
+      type: "breakfast"
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* 3D Nutrition Visualization */}
+      <Card className="h-64">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Utensils className="h-5 w-5 text-primary" />
+            Nutrition Balance Visualization
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="h-32">
+          <NutritionScene />
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="tracking" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="tracking">Daily Tracking</TabsTrigger>
+          <TabsTrigger value="plans">Meal Plans</TabsTrigger>
+          <TabsTrigger value="progress">Progress</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="tracking" className="space-y-6">
+          {/* Daily Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Calories</p>
+                    <p className="text-2xl font-bold">{totalNutrition.calories}</p>
+                    <p className="text-xs text-muted-foreground">of {dailyTargets.calories}</p>
+                  </div>
+                  <Target className="h-8 w-8 text-primary" />
+                </div>
+                <Progress value={(totalNutrition.calories / dailyTargets.calories) * 100} className="mt-2" />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Carbs (g)</p>
+                    <p className="text-2xl font-bold">{totalNutrition.carbs}</p>
+                    <p className="text-xs text-muted-foreground">of {dailyTargets.carbs}</p>
+                  </div>
+                  <Apple className="h-8 w-8 text-orange-500" />
+                </div>
+                <Progress value={(totalNutrition.carbs / dailyTargets.carbs) * 100} className="mt-2" />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Protein (g)</p>
+                    <p className="text-2xl font-bold">{totalNutrition.protein}</p>
+                    <p className="text-xs text-muted-foreground">of {dailyTargets.protein}</p>
+                  </div>
+                  <div className="h-8 w-8 bg-green-500 rounded-full" />
+                </div>
+                <Progress value={(totalNutrition.protein / dailyTargets.protein) * 100} className="mt-2" />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Fat (g)</p>
+                    <p className="text-2xl font-bold">{totalNutrition.fat}</p>
+                    <p className="text-xs text-muted-foreground">of {dailyTargets.fat}</p>
+                  </div>
+                  <div className="h-8 w-8 bg-yellow-500 rounded-full" />
+                </div>
+                <Progress value={(totalNutrition.fat / dailyTargets.fat) * 100} className="mt-2" />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Add Meal Form */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Log a Meal</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                <div className="lg:col-span-2">
+                  <Label htmlFor="meal-name">Meal Name</Label>
+                  <Input
+                    id="meal-name"
+                    value={newMeal.name}
+                    onChange={(e) => setNewMeal({ ...newMeal, name: e.target.value })}
+                    placeholder="e.g., Grilled Chicken Salad"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="meal-type">Type</Label>
+                  <select
+                    id="meal-type"
+                    value={newMeal.type}
+                    onChange={(e) => setNewMeal({ ...newMeal, type: e.target.value as any })}
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                  >
+                    <option value="breakfast">Breakfast</option>
+                    <option value="lunch">Lunch</option>
+                    <option value="dinner">Dinner</option>
+                    <option value="snack">Snack</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="calories">Calories</Label>
+                  <Input
+                    id="calories"
+                    type="number"
+                    value={newMeal.calories}
+                    onChange={(e) => setNewMeal({ ...newMeal, calories: e.target.value })}
+                    placeholder="300"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="carbs">Carbs (g)</Label>
+                  <Input
+                    id="carbs"
+                    type="number"
+                    value={newMeal.carbs}
+                    onChange={(e) => setNewMeal({ ...newMeal, carbs: e.target.value })}
+                    placeholder="30"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="protein">Protein (g)</Label>
+                  <Input
+                    id="protein"
+                    type="number"
+                    value={newMeal.protein}
+                    onChange={(e) => setNewMeal({ ...newMeal, protein: e.target.value })}
+                    placeholder="25"
+                  />
+                </div>
+              </div>
+              <Button onClick={addMeal} className="w-full md:w-auto">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Meal
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Meal History */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Today's Meals</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {mealLogs.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No meals logged today</p>
+              ) : (
+                <div className="space-y-4">
+                  {mealLogs.map((meal) => (
+                    <div key={meal.id} className="flex items-center justify-between p-4 bg-accent rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <Badge variant="outline">{meal.type}</Badge>
+                        <div>
+                          <h4 className="font-medium">{meal.name}</h4>
+                          <p className="text-sm text-muted-foreground flex items-center gap-2">
+                            <Clock className="h-3 w-3" />
+                            {meal.time}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{meal.calories} cal</p>
+                        <p className="text-xs text-muted-foreground">
+                          C:{meal.carbs}g | P:{meal.protein}g | F:{meal.fat}g
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="plans" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {mealPlans.map((plan) => (
+              <Card key={plan.id}>
+                <CardHeader>
+                  <CardTitle>{plan.name}</CardTitle>
+                  <p className="text-sm text-muted-foreground">{plan.description}</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex justify-between text-sm">
+                      <span>Daily Calories: {plan.calories}</span>
+                      <span>Carbs: {plan.carbs}%</span>
+                    </div>
+                    <div className="space-y-2">
+                      {plan.meals.map((meal, index) => (
+                        <div key={index} className="flex justify-between items-center">
+                          <div>
+                            <p className="font-medium">{meal.name}</p>
+                            <Badge variant="outline" className="text-xs">{meal.type}</Badge>
+                          </div>
+                          <span className="text-sm">{meal.calories} cal</span>
+                        </div>
+                      ))}
+                    </div>
+                    <Button className="w-full">Select This Plan</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="progress">
+          <Card>
+            <CardHeader>
+              <CardTitle>Weekly Nutrition Progress</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-center text-muted-foreground py-8">
+                Progress charts will be available once you start logging meals consistently
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};

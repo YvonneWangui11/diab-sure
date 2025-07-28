@@ -3,6 +3,9 @@ import { Navigation } from "@/components/Navigation";
 import { Dashboard } from "@/components/Dashboard";
 import { GlucoseTracking } from "@/components/GlucoseTracking";
 import { MedicationTracking } from "@/components/MedicationTracking";
+import { NutritionTracking } from "@/components/NutritionTracking";
+import { ExerciseTracking } from "@/components/ExerciseTracking";
+import { ProfilePage } from "@/components/ProfilePage";
 import { LandingPage } from "@/components/LandingPage";
 
 const Index = () => {
@@ -23,15 +26,15 @@ const Index = () => {
       case "medication":
         return <MedicationTracking />;
       case "nutrition":
-        return <div className="p-8 text-center"><h2 className="text-2xl font-bold">Nutrition Module Coming Soon</h2></div>;
+        return <NutritionTracking />;
       case "exercise":
-        return <div className="p-8 text-center"><h2 className="text-2xl font-bold">Exercise Module Coming Soon</h2></div>;
+        return <ExerciseTracking />;
       case "appointments":
         return <div className="p-8 text-center"><h2 className="text-2xl font-bold">Appointments Module Coming Soon</h2></div>;
       case "education":
         return <div className="p-8 text-center"><h2 className="text-2xl font-bold">Education Module Coming Soon</h2></div>;
       case "profile":
-        return <div className="p-8 text-center"><h2 className="text-2xl font-bold">Profile Module Coming Soon</h2></div>;
+        return <ProfilePage />;
       default:
         return <Dashboard />;
     }
