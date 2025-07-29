@@ -57,8 +57,15 @@ export const AuthPage = ({ onAuthSuccess }: AuthPageProps) => {
 
         if (error) throw error;
 
-        if (data.user) {
-          // Create profile
+        if (data.user && !data.user.email_confirmed_at) {
+          // For new signups, we can't create the profile immediately due to RLS
+          // The profile will need to be created after email confirmation
+          toast({
+            title: "Account created successfully!",
+            description: "Please check your email to verify your account, then complete your profile setup."
+          });
+        } else if (data.user) {
+          // User is authenticated, create profile
           const { error: profileError } = await supabase
             .from('profiles')
             .insert({
