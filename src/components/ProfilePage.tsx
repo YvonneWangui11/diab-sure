@@ -1,223 +1,395 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  MapPin, 
-  Heart, 
-  Activity,
-  Settings,
-  Edit,
-  Save,
-  Shield,
-  Bell
-} from "lucide-react";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Sphere } from "@react-three/drei";
+import { Textarea } from "@/components/ui/textarea";
+import { User, Mail, Phone, Calendar, Edit, Save, LogOut } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-const ProfileScene = () => (
-  <Canvas camera={{ position: [0, 0, 5] }}>
-    <ambientLight intensity={0.5} />
-    <pointLight position={[10, 10, 10]} />
-    <OrbitControls enableZoom={false} autoRotate autoRotateSpeed={0.5} />
-    <Sphere args={[1.5, 32, 32]}>
-      <meshStandardMaterial color="#3b82f6" wireframe />
-    </Sphere>
-  </Canvas>
-);
-
-interface UserProfile {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  dateOfBirth: string;
-  address: string;
-  emergencyContact: string;
-  emergencyPhone: string;
-  diabetesType: '1' | '2' | 'gestational';
-  diagnosisDate: string;
-  targetGlucose: string;
-  medications: string;
-  allergies: string;
-  dietaryRestrictions: string;
+interface ProfilePageProps {
+  onSignOut: () => void;
 }
 
-export const ProfilePage = () => {
+export const ProfilePage = ({ onSignOut }: ProfilePageProps) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState<UserProfile>({
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@example.com",
-    phone: "+254 700 123 456",
-    dateOfBirth: "1990-05-15",
-    address: "JKUAT, Juja, Kiambu County",
-    emergencyContact: "Jane Doe",
-    emergencyPhone: "+254 700 654 321",
-    diabetesType: "2",
-    diagnosisDate: "2020-03-10",
-    targetGlucose: "80-130",
-    medications: "Metformin 500mg twice daily",
-    allergies: "None",
-    dietaryRestrictions: "Low carb diet"
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [profileData, setProfileData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    dateOfBirth: "",
+    role: "",
+    // Doctor specific
+    specialization: "",
+    licenseNumber: "",
+    hospitalAffiliation: "",
+    yearsOfExperience: 0,
+    consultationFee: 0,
+    availabilityHours: "",
+    // Patient specific
+    medicalHistory: "",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+    insuranceProvider: "",
+    insuranceId: "",
+    allergies: [],
+    currentMedications: []
   });
+  const { toast } = useToast();
 
-  const [notifications, setNotifications] = useState({
-    medicationReminders: true,
-    appointmentAlerts: true,
-    glucoseTracking: true,
-    exerciseGoals: false,
-    weeklyReports: true
-  });
+  useEffect(() => {
+    loadProfile();
+  }, []);
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // Here you would save to backend
-    console.log("Profile saved:", profile);
+  const loadProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      setUser(user);
+
+      // Get profile data
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profile) {
+        setProfileData(prev => ({
+          ...prev,
+          name: profile.full_name || "",
+          email: profile.email || "",
+          phone: profile.phone || "",
+          dateOfBirth: profile.date_of_birth || "",
+          role: profile.role || ""
+        }));
+
+        // Get role-specific data
+        if (profile.role === 'doctor') {
+          const { data: doctorDetails } = await supabase
+            .from('doctor_details')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+
+          if (doctorDetails) {
+            setProfileData(prev => ({
+              ...prev,
+              specialization: doctorDetails.specialization || "",
+              licenseNumber: doctorDetails.license_number || "",
+              hospitalAffiliation: doctorDetails.hospital_affiliation || "",
+              yearsOfExperience: doctorDetails.years_of_experience || 0,
+              consultationFee: doctorDetails.consultation_fee || 0,
+              availabilityHours: doctorDetails.availability_hours || ""
+            }));
+          }
+        } else if (profile.role === 'patient') {
+          const { data: patientDetails } = await supabase
+            .from('patient_details')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+
+          if (patientDetails) {
+            setProfileData(prev => ({
+              ...prev,
+              medicalHistory: patientDetails.medical_history || "",
+              emergencyContactName: patientDetails.emergency_contact_name || "",
+              emergencyContactPhone: patientDetails.emergency_contact_phone || "",
+              insuranceProvider: patientDetails.insurance_provider || "",
+              insuranceId: patientDetails.insurance_id || "",
+              allergies: patientDetails.allergies || [],
+              currentMedications: patientDetails.current_medications || []
+            }));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateProfile = (field: keyof UserProfile, value: string) => {
-    setProfile(prev => ({ ...prev, [field]: value }));
+  const handleSave = async () => {
+    if (!user) return;
+    
+    try {
+      // Update profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: profileData.name,
+          phone: profileData.phone,
+          date_of_birth: profileData.dateOfBirth
+        })
+        .eq('user_id', user.id);
+
+      if (profileError) throw profileError;
+
+      // Update role-specific data
+      if (profileData.role === 'doctor') {
+        const { error: doctorError } = await supabase
+          .from('doctor_details')
+          .update({
+            specialization: profileData.specialization,
+            license_number: profileData.licenseNumber,
+            hospital_affiliation: profileData.hospitalAffiliation,
+            years_of_experience: profileData.yearsOfExperience,
+            consultation_fee: profileData.consultationFee,
+            availability_hours: profileData.availabilityHours
+          })
+          .eq('user_id', user.id);
+
+        if (doctorError) throw doctorError;
+      } else if (profileData.role === 'patient') {
+        const { error: patientError } = await supabase
+          .from('patient_details')
+          .update({
+            medical_history: profileData.medicalHistory,
+            emergency_contact_name: profileData.emergencyContactName,
+            emergency_contact_phone: profileData.emergencyContactPhone,
+            insurance_provider: profileData.insuranceProvider,
+            insurance_id: profileData.insuranceId
+          })
+          .eq('user_id', user.id);
+
+        if (patientError) throw patientError;
+      }
+
+      setIsEditing(false);
+      toast({
+        title: "Profile updated successfully!",
+        description: "Your changes have been saved."
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error updating profile",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
-  const toggleNotification = (key: keyof typeof notifications) => {
-    setNotifications(prev => ({ ...prev, [key]: !prev[key] }));
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    onSignOut();
   };
 
-  const getInitials = () => {
-    return `${profile.firstName[0]}${profile.lastName[0]}`.toUpperCase();
+  const handleInputChange = (field: string, value: string | number) => {
+    setProfileData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading profile...</div>;
+  }
 
   return (
     <div className="space-y-6">
-      {/* 3D Profile Visualization */}
-      <Card className="h-64">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
+          <p className="text-muted-foreground">
+            Manage your personal information and preferences
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={isEditing ? "default" : "outline"}
+            onClick={isEditing ? handleSave : () => setIsEditing(true)}
+          >
+            {isEditing ? <Save className="w-4 h-4 mr-2" /> : <Edit className="w-4 h-4 mr-2" />}
+            {isEditing ? "Save Changes" : "Edit Profile"}
+          </Button>
+          <Button variant="destructive" onClick={handleSignOut}>
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
+      </div>
+
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-primary" />
-            Profile Visualization
+            <User className="w-5 h-5" />
+            Personal Information
           </CardTitle>
+          <Badge variant="secondary" className="mb-4">
+            {profileData.role === 'doctor' ? 'Doctor Profile' : 'Patient Profile'}
+          </Badge>
         </CardHeader>
-        <CardContent className="h-32">
-          <ProfileScene />
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Full Name</Label>
+              <Input
+                id="name"
+                value={profileData.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                disabled={!isEditing}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={profileData.email}
+                disabled={true}
+                className="bg-muted"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                value={profileData.phone}
+                onChange={(e) => handleInputChange("phone", e.target.value)}
+                disabled={!isEditing}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+              <Input
+                id="dateOfBirth"
+                type="date"
+                value={profileData.dateOfBirth}
+                onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                disabled={!isEditing}
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="personal" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="personal">Personal Info</TabsTrigger>
-          <TabsTrigger value="medical">Medical Info</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-        </TabsList>
+      {profileData.role === 'doctor' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              Doctor Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="specialization">Specialization</Label>
+                <Input
+                  id="specialization"
+                  value={profileData.specialization}
+                  onChange={(e) => handleInputChange("specialization", e.target.value)}
+                  disabled={!isEditing}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="licenseNumber">License Number</Label>
+                <Input
+                  id="licenseNumber"
+                  value={profileData.licenseNumber}
+                  onChange={(e) => handleInputChange("licenseNumber", e.target.value)}
+                  disabled={!isEditing}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="hospitalAffiliation">Hospital Affiliation</Label>
+                <Input
+                  id="hospitalAffiliation"
+                  value={profileData.hospitalAffiliation}
+                  onChange={(e) => handleInputChange("hospitalAffiliation", e.target.value)}
+                  disabled={!isEditing}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="yearsOfExperience">Years of Experience</Label>
+                <Input
+                  id="yearsOfExperience"
+                  type="number"
+                  value={profileData.yearsOfExperience}
+                  onChange={(e) => handleInputChange("yearsOfExperience", parseInt(e.target.value) || 0)}
+                  disabled={!isEditing}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="consultationFee">Consultation Fee ($)</Label>
+                <Input
+                  id="consultationFee"
+                  type="number"
+                  step="0.01"
+                  value={profileData.consultationFee}
+                  onChange={(e) => handleInputChange("consultationFee", parseFloat(e.target.value) || 0)}
+                  disabled={!isEditing}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="availabilityHours">Availability Hours</Label>
+                <Input
+                  id="availabilityHours"
+                  value={profileData.availabilityHours}
+                  onChange={(e) => handleInputChange("availabilityHours", e.target.value)}
+                  disabled={!isEditing}
+                  placeholder="e.g., Mon-Fri 9AM-5PM"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-        <TabsContent value="personal" className="space-y-6">
-          {/* Profile Header */}
+      {profileData.role === 'patient' && (
+        <>
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-6">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src="/placeholder-avatar.jpg" />
-                  <AvatarFallback className="text-xl">{getInitials()}</AvatarFallback>
-                </Avatar>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Medical Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="medicalHistory">Medical History</Label>
+                <Textarea
+                  id="medicalHistory"
+                  value={profileData.medicalHistory}
+                  onChange={(e) => handleInputChange("medicalHistory", e.target.value)}
+                  disabled={!isEditing}
+                  rows={3}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Phone className="w-5 h-5" />
+                Emergency Contact
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <h2 className="text-2xl font-bold">{profile.firstName} {profile.lastName}</h2>
-                  <p className="text-muted-foreground flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    {profile.email}
-                  </p>
-                  <Badge variant="outline">Patient</Badge>
-                </div>
-                <div className="ml-auto">
-                  <Button
-                    onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-                    variant={isEditing ? "default" : "outline"}
-                  >
-                    {isEditing ? (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Save Changes
-                      </>
-                    ) : (
-                      <>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit Profile
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Personal Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="firstName">First Name</Label>
+                  <Label htmlFor="emergencyContactName">Contact Name</Label>
                   <Input
-                    id="firstName"
-                    value={profile.firstName}
-                    onChange={(e) => updateProfile("firstName", e.target.value)}
+                    id="emergencyContactName"
+                    value={profileData.emergencyContactName}
+                    onChange={(e) => handleInputChange("emergencyContactName", e.target.value)}
                     disabled={!isEditing}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="lastName">Last Name</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="emergencyContactPhone">Contact Phone</Label>
                   <Input
-                    id="lastName"
-                    value={profile.lastName}
-                    onChange={(e) => updateProfile("lastName", e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={profile.email}
-                    onChange={(e) => updateProfile("email", e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    value={profile.phone}
-                    onChange={(e) => updateProfile("phone", e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                  <Input
-                    id="dateOfBirth"
-                    type="date"
-                    value={profile.dateOfBirth}
-                    onChange={(e) => updateProfile("dateOfBirth", e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    value={profile.address}
-                    onChange={(e) => updateProfile("address", e.target.value)}
+                    id="emergencyContactPhone"
+                    value={profileData.emergencyContactPhone}
+                    onChange={(e) => handleInputChange("emergencyContactPhone", e.target.value)}
                     disabled={!isEditing}
                   />
                 </div>
@@ -225,222 +397,38 @@ export const ProfilePage = () => {
             </CardContent>
           </Card>
 
-          {/* Emergency Contact */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Emergency Contact</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="emergencyContact">Contact Name</Label>
-                  <Input
-                    id="emergencyContact"
-                    value={profile.emergencyContact}
-                    onChange={(e) => updateProfile("emergencyContact", e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="emergencyPhone">Contact Phone</Label>
-                  <Input
-                    id="emergencyPhone"
-                    value={profile.emergencyPhone}
-                    onChange={(e) => updateProfile("emergencyPhone", e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="medical" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Heart className="h-5 w-5 text-red-500" />
-                Diabetes Information
+                <Calendar className="w-5 h-5" />
+                Insurance Information
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="diabetesType">Diabetes Type</Label>
-                  <select
-                    id="diabetesType"
-                    value={profile.diabetesType}
-                    onChange={(e) => updateProfile("diabetesType", e.target.value)}
-                    disabled={!isEditing}
-                    className="w-full h-10 px-3 rounded-md border border-input bg-background disabled:opacity-50"
-                  >
-                    <option value="1">Type 1</option>
-                    <option value="2">Type 2</option>
-                    <option value="gestational">Gestational</option>
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="diagnosisDate">Diagnosis Date</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="insuranceProvider">Insurance Provider</Label>
                   <Input
-                    id="diagnosisDate"
-                    type="date"
-                    value={profile.diagnosisDate}
-                    onChange={(e) => updateProfile("diagnosisDate", e.target.value)}
+                    id="insuranceProvider"
+                    value={profileData.insuranceProvider}
+                    onChange={(e) => handleInputChange("insuranceProvider", e.target.value)}
                     disabled={!isEditing}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="targetGlucose">Target Glucose Range (mg/dL)</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="insuranceId">Insurance ID</Label>
                   <Input
-                    id="targetGlucose"
-                    value={profile.targetGlucose}
-                    onChange={(e) => updateProfile("targetGlucose", e.target.value)}
-                    disabled={!isEditing}
-                    placeholder="e.g., 80-130"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="medications">Current Medications</Label>
-                  <Input
-                    id="medications"
-                    value={profile.medications}
-                    onChange={(e) => updateProfile("medications", e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="allergies">Known Allergies</Label>
-                  <Input
-                    id="allergies"
-                    value={profile.allergies}
-                    onChange={(e) => updateProfile("allergies", e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="dietaryRestrictions">Dietary Restrictions</Label>
-                  <Input
-                    id="dietaryRestrictions"
-                    value={profile.dietaryRestrictions}
-                    onChange={(e) => updateProfile("dietaryRestrictions", e.target.value)}
+                    id="insuranceId"
+                    value={profileData.insuranceId}
+                    onChange={(e) => handleInputChange("insuranceId", e.target.value)}
                     disabled={!isEditing}
                   />
                 </div>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="settings" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Notification Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {Object.entries(notifications).map(([key, value]) => (
-                <div key={key} className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {key === 'medicationReminders' && 'Receive reminders for medication schedules'}
-                      {key === 'appointmentAlerts' && 'Get notified about upcoming appointments'}
-                      {key === 'glucoseTracking' && 'Reminders to log glucose readings'}
-                      {key === 'exerciseGoals' && 'Notifications about exercise goals'}
-                      {key === 'weeklyReports' && 'Weekly health summary reports'}
-                    </p>
-                  </div>
-                  <Button
-                    variant={value ? "default" : "outline"}
-                    onClick={() => toggleNotification(key as keyof typeof notifications)}
-                    size="sm"
-                  >
-                    {value ? "Enabled" : "Disabled"}
-                  </Button>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                App Preferences
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Dark Mode</p>
-                  <p className="text-sm text-muted-foreground">Switch between light and dark themes</p>
-                </div>
-                <Button variant="outline" size="sm">Auto</Button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Language</p>
-                  <p className="text-sm text-muted-foreground">Choose your preferred language</p>
-                </div>
-                <Button variant="outline" size="sm">English</Button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Units</p>
-                  <p className="text-sm text-muted-foreground">Glucose measurement units</p>
-                </div>
-                <Button variant="outline" size="sm">mg/dL</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="security" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Security Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="current-password">Current Password</Label>
-                  <Input id="current-password" type="password" placeholder="Enter current password" />
-                </div>
-                <div>
-                  <Label htmlFor="new-password">New Password</Label>
-                  <Input id="new-password" type="password" placeholder="Enter new password" />
-                </div>
-                <div>
-                  <Label htmlFor="confirm-password">Confirm New Password</Label>
-                  <Input id="confirm-password" type="password" placeholder="Confirm new password" />
-                </div>
-                <Button>Update Password</Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Data Export</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Export your health data for personal records or to share with healthcare providers.
-              </p>
-              <div className="flex gap-2">
-                <Button variant="outline">Export Glucose Data</Button>
-                <Button variant="outline">Export Medication Log</Button>
-                <Button variant="outline">Export All Data</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </>
+      )}
     </div>
   );
 };
