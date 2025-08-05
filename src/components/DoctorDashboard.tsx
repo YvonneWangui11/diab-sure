@@ -1,17 +1,115 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, Calendar, Activity, TrendingUp } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export const DoctorDashboard = () => {
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [doctorDetails, setDoctorDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadDoctorData();
+    
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('doctor-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles'
+        },
+        () => loadDoctorData()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'doctor_details'
+        },
+        () => loadDoctorData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const loadDoctorData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Load profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profile) {
+        setUserProfile(profile);
+
+        // Load doctor details
+        const { data: doctorData } = await supabase
+          .from('doctor_details')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        setDoctorDetails(doctorData);
+      }
+    } catch (error) {
+      console.error('Error loading doctor data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load doctor data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const getDoctorTitle = () => {
+    if (!userProfile) return "Dr. Doctor";
+    return `Dr. ${userProfile.full_name}`;
+  };
+
+  const getSpecialization = () => {
+    if (!doctorDetails?.specialization) return "General Practice";
+    return doctorDetails.specialization;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Doctor Dashboard</h1>
           <p className="text-muted-foreground">
-            Welcome back, Dr. Smith. Here's your practice overview.
+            Welcome back, {getDoctorTitle()}. Here's your practice overview.
           </p>
+          {doctorDetails && (
+            <p className="text-sm text-muted-foreground">
+              Specialization: {getSpecialization()} • License: {doctorDetails.license_number}
+            </p>
+          )}
         </div>
         <Badge variant="secondary" className="h-fit">
           Doctor Portal

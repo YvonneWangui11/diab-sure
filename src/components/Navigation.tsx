@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 interface NavigationProps {
   currentPage: string;
   onPageChange: (page: string) => void;
+  onSignOut?: () => void;
 }
 
-export const Navigation = ({ currentPage, onPageChange }: NavigationProps) => {
+export const Navigation = ({ currentPage, onPageChange, onSignOut }: NavigationProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const menuItems = [
@@ -26,12 +27,15 @@ export const Navigation = ({ currentPage, onPageChange }: NavigationProps) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="flex items-center space-x-2">
+          <button 
+            onClick={() => onPageChange('dashboard')}
+            className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+          >
             <Heart className="h-8 w-8 text-primary" />
             <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
               DiabeSure
             </span>
-          </div>
+          </button>
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-1">
@@ -50,7 +54,12 @@ export const Navigation = ({ currentPage, onPageChange }: NavigationProps) => {
                 </Button>
               );
             })}
-            <Button variant="ghost" size="sm" className="ml-4 text-destructive">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="ml-4 text-destructive"
+              onClick={onSignOut}
+            >
               <LogOut className="h-4 w-4 mr-2" />
               Logout
             </Button>
@@ -90,7 +99,12 @@ export const Navigation = ({ currentPage, onPageChange }: NavigationProps) => {
                   </Button>
                 );
               })}
-              <Button variant="ghost" size="sm" className="justify-start text-destructive">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="justify-start text-destructive"
+                onClick={onSignOut}
+              >
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>

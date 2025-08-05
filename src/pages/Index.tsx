@@ -67,10 +67,12 @@ const Index = () => {
     setShowAuth(false);
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
     setIsLoggedIn(false);
     setUserRole("");
     setShowAuth(false);
+    setCurrentPage("dashboard");
   };
 
   const renderCurrentPage = () => {
@@ -106,7 +108,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navigation currentPage={currentPage} onPageChange={setCurrentPage} />
+      <Navigation 
+        currentPage={currentPage} 
+        onPageChange={setCurrentPage}
+        onSignOut={handleSignOut}
+      />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {renderCurrentPage()}
       </main>

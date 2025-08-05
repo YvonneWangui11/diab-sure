@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -13,15 +14,104 @@ import {
   CheckCircle,
   Clock
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export const Dashboard = () => {
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [patientDetails, setPatientDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadUserData();
+    
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles'
+        },
+        () => loadUserData()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'patient_details'
+        },
+        () => loadUserData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const loadUserData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Load profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profile) {
+        setUserProfile(profile);
+
+        // Load patient details if user is a patient
+        if (profile.role === 'patient') {
+          const { data: patientData } = await supabase
+            .from('patient_details')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+          
+          setPatientDetails(patientData);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load user data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const getWelcomeMessage = () => {
+    if (!userProfile) return "Welcome back!";
+    return `Welcome back, ${userProfile.full_name}!`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's your health overview.</p>
+          <p className="text-muted-foreground">{getWelcomeMessage()} Here's your health overview.</p>
         </div>
         <Badge variant="outline" className="bg-success text-success-foreground">
           <CheckCircle className="h-4 w-4 mr-1" />
