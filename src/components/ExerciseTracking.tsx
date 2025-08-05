@@ -20,22 +20,25 @@ import {
   Zap
 } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Box, Cylinder } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 
 const ExerciseScene = () => (
   <Canvas camera={{ position: [0, 0, 8] }}>
     <ambientLight intensity={0.5} />
     <pointLight position={[10, 10, 10]} />
     <OrbitControls enableZoom={false} autoRotate autoRotateSpeed={1} />
-    <Cylinder args={[0.5, 0.5, 2]} position={[-3, 0, 0]} rotation={[0, 0, Math.PI / 4]}>
+    <mesh position={[-3, 0, 0]} rotation={[0, 0, Math.PI / 4]}>
+      <cylinderGeometry args={[0.5, 0.5, 2]} />
       <meshStandardMaterial color="#3b82f6" />
-    </Cylinder>
-    <Box args={[1, 1, 1]} position={[0, 0, 0]} rotation={[0.5, 0.5, 0]}>
+    </mesh>
+    <mesh position={[0, 0, 0]} rotation={[0.5, 0.5, 0]}>
+      <boxGeometry args={[1, 1, 1]} />
       <meshStandardMaterial color="#ef4444" />
-    </Box>
-    <Cylinder args={[0.3, 0.3, 1.5]} position={[3, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+    </mesh>
+    <mesh position={[3, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+      <cylinderGeometry args={[0.3, 0.3, 1.5]} />
       <meshStandardMaterial color="#22c55e" />
-    </Cylinder>
+    </mesh>
   </Canvas>
 );
 

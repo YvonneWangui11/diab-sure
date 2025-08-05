@@ -8,22 +8,25 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Utensils, Plus, Target, Apple, Clock } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Sphere, Box } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 
 const NutritionScene = () => (
   <Canvas camera={{ position: [0, 0, 5] }}>
     <ambientLight intensity={0.5} />
     <pointLight position={[10, 10, 10]} />
     <OrbitControls enableZoom={false} autoRotate autoRotateSpeed={2} />
-    <Sphere args={[1, 32, 32]} position={[-2, 0, 0]}>
+    <mesh position={[-2, 0, 0]}>
+      <sphereGeometry args={[1, 32, 32]} />
       <meshStandardMaterial color="#ef4444" />
-    </Sphere>
-    <Box args={[1.5, 1.5, 1.5]} position={[2, 0, 0]}>
+    </mesh>
+    <mesh position={[2, 0, 0]}>
+      <boxGeometry args={[1.5, 1.5, 1.5]} />
       <meshStandardMaterial color="#22c55e" />
-    </Box>
-    <Sphere args={[0.8, 32, 32]} position={[0, -2, 0]}>
+    </mesh>
+    <mesh position={[0, -2, 0]}>
+      <sphereGeometry args={[0.8, 32, 32]} />
       <meshStandardMaterial color="#f59e0b" />
-    </Sphere>
+    </mesh>
   </Canvas>
 );
 
