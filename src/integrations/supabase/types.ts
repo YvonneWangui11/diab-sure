@@ -7,13 +7,88 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
   }
   public: {
     Tables: {
+      appointments: {
+        Row: {
+          created_at: string
+          doctor_id: string
+          end_time: string | null
+          id: string
+          notes: string | null
+          patient_id: string
+          start_time: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_id: string
+          end_time?: string | null
+          id?: string
+          notes?: string | null
+          patient_id: string
+          start_time: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string
+          end_time?: string | null
+          id?: string
+          notes?: string | null
+          patient_id?: string
+          start_time?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_role: Database["public"]["Enums"]["app_role"] | null
+          created_at: string
+          id: string
+          ip_address: unknown
+          metadata: Json | null
+          target_entity: string
+          target_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_role?: Database["public"]["Enums"]["app_role"] | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          target_entity: string
+          target_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_role?: Database["public"]["Enums"]["app_role"] | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          target_entity?: string
+          target_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       doctor_details: {
         Row: {
           availability_hours: string | null
@@ -58,6 +133,215 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      doctor_patients: {
+        Row: {
+          created_at: string
+          doctor_id: string
+          id: string
+          patient_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_id: string
+          id?: string
+          patient_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          patient_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      education_content: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_published: boolean | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_published?: boolean | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_published?: boolean | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      exercise_logs: {
+        Row: {
+          created_at: string
+          date_time: string
+          duration_minutes: number
+          exercise_type: string
+          id: string
+          intensity: string | null
+          note: string | null
+          patient_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_time?: string
+          duration_minutes: number
+          exercise_type: string
+          id?: string
+          intensity?: string | null
+          note?: string | null
+          patient_id: string
+        }
+        Update: {
+          created_at?: string
+          date_time?: string
+          duration_minutes?: number
+          exercise_type?: string
+          id?: string
+          intensity?: string | null
+          note?: string | null
+          patient_id?: string
+        }
+        Relationships: []
+      }
+      health_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          doctor_id: string
+          id: string
+          message: string
+          patient_id: string
+          resolved: boolean
+          severity: string
+          updated_at: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          doctor_id: string
+          id?: string
+          message: string
+          patient_id: string
+          resolved?: boolean
+          severity?: string
+          updated_at?: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          message?: string
+          patient_id?: string
+          resolved?: boolean
+          severity?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      meal_logs: {
+        Row: {
+          created_at: string
+          date_time: string
+          description: string
+          id: string
+          meal_type: string | null
+          note: string | null
+          patient_id: string
+          photo_url: string | null
+          portion_size: string | null
+        }
+        Insert: {
+          created_at?: string
+          date_time?: string
+          description: string
+          id?: string
+          meal_type?: string | null
+          note?: string | null
+          patient_id: string
+          photo_url?: string | null
+          portion_size?: string | null
+        }
+        Update: {
+          created_at?: string
+          date_time?: string
+          description?: string
+          id?: string
+          meal_type?: string | null
+          note?: string | null
+          patient_id?: string
+          photo_url?: string | null
+          portion_size?: string | null
+        }
+        Relationships: []
+      }
+      medication_intake: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          patient_id: string
+          prescription_id: string
+          scheduled_time: string
+          status: string | null
+          taken_time: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          patient_id: string
+          prescription_id: string
+          scheduled_time: string
+          status?: string | null
+          taken_time?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          patient_id?: string
+          prescription_id?: string
+          scheduled_time?: string
+          status?: string | null
+          taken_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medication_intake_prescription_id_fkey"
+            columns: ["prescription_id"]
+            isOneToOne: false
+            referencedRelation: "prescriptions"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -144,6 +428,54 @@ export type Database = {
         }
         Relationships: []
       }
+      messages: {
+        Row: {
+          channel: string | null
+          content: string
+          created_at: string
+          delivered_at: string | null
+          from_user_id: string | null
+          id: string
+          read_at: string | null
+          sent_at: string | null
+          status: string | null
+          subject: string | null
+          template_id: string | null
+          to_clinician_id: string | null
+          to_patient_id: string | null
+        }
+        Insert: {
+          channel?: string | null
+          content: string
+          created_at?: string
+          delivered_at?: string | null
+          from_user_id?: string | null
+          id?: string
+          read_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          subject?: string | null
+          template_id?: string | null
+          to_clinician_id?: string | null
+          to_patient_id?: string | null
+        }
+        Update: {
+          channel?: string | null
+          content?: string
+          created_at?: string
+          delivered_at?: string | null
+          from_user_id?: string | null
+          id?: string
+          read_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          subject?: string | null
+          template_id?: string | null
+          to_clinician_id?: string | null
+          to_patient_id?: string | null
+        }
+        Relationships: []
+      }
       patient_details: {
         Row: {
           allergies: string[] | null
@@ -194,38 +526,116 @@ export type Database = {
           },
         ]
       }
+      prescriptions: {
+        Row: {
+          clinician_id: string | null
+          created_at: string
+          dosage: string
+          drug_name: string
+          end_date: string | null
+          frequency: string
+          id: string
+          instructions: string | null
+          patient_id: string
+          quantity: number | null
+          start_date: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          clinician_id?: string | null
+          created_at?: string
+          dosage: string
+          drug_name: string
+          end_date?: string | null
+          frequency: string
+          id?: string
+          instructions?: string | null
+          patient_id: string
+          quantity?: number | null
+          start_date: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          clinician_id?: string | null
+          created_at?: string
+          dosage?: string
+          drug_name?: string
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          instructions?: string | null
+          patient_id?: string
+          quantity?: number | null
+          start_date?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          bmi: number | null
+          consent_flags: Json | null
+          contact_phone: string | null
           created_at: string
           date_of_birth: string | null
           email: string
           full_name: string
           id: string
           phone: string | null
-          role: string
+          sex: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          bmi?: number | null
+          consent_flags?: Json | null
+          contact_phone?: string | null
           created_at?: string
           date_of_birth?: string | null
           email: string
           full_name: string
           id?: string
           phone?: string | null
-          role: string
+          sex?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          bmi?: number | null
+          consent_flags?: Json | null
+          contact_phone?: string | null
           created_at?: string
           date_of_birth?: string | null
           email?: string
           full_name?: string
           id?: string
           phone?: string | null
-          role?: string
+          sex?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: []
@@ -235,10 +645,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "patient" | "clinician" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -365,6 +781,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["patient", "clinician", "admin"],
+    },
   },
 } as const

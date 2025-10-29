@@ -17,12 +17,12 @@ export const ProfilePage = ({ onSignOut }: ProfilePageProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string>("");
   const [profileData, setProfileData] = useState({
     name: "",
     email: "",
     phone: "",
     dateOfBirth: "",
-    role: "",
     // Doctor specific
     specialization: "",
     licenseNumber: "",
@@ -65,12 +65,21 @@ export const ProfilePage = ({ onSignOut }: ProfilePageProps) => {
           name: profile.full_name || "",
           email: profile.email || "",
           phone: profile.phone || "",
-          dateOfBirth: profile.date_of_birth || "",
-          role: profile.role || ""
+          dateOfBirth: profile.date_of_birth || ""
         }));
 
+        // Get user role from user_roles table
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        const role = roleData?.role || "";
+        setUserRole(role);
+
         // Get role-specific data
-        if (profile.role === 'doctor') {
+        if (role === 'clinician') {
           const { data: doctorDetails } = await supabase
             .from('doctor_details')
             .select('*')
@@ -88,7 +97,7 @@ export const ProfilePage = ({ onSignOut }: ProfilePageProps) => {
               availabilityHours: doctorDetails.availability_hours || ""
             }));
           }
-        } else if (profile.role === 'patient') {
+        } else if (role === 'patient') {
           const { data: patientDetails } = await supabase
             .from('patient_details')
             .select('*')
@@ -133,7 +142,7 @@ export const ProfilePage = ({ onSignOut }: ProfilePageProps) => {
       if (profileError) throw profileError;
 
       // Update role-specific data
-      if (profileData.role === 'doctor') {
+      if (userRole === 'clinician') {
         const { error: doctorError } = await supabase
           .from('doctor_details')
           .update({
@@ -147,7 +156,7 @@ export const ProfilePage = ({ onSignOut }: ProfilePageProps) => {
           .eq('user_id', user.id);
 
         if (doctorError) throw doctorError;
-      } else if (profileData.role === 'patient') {
+      } else if (userRole === 'patient') {
         const { error: patientError } = await supabase
           .from('patient_details')
           .update({
@@ -223,7 +232,7 @@ export const ProfilePage = ({ onSignOut }: ProfilePageProps) => {
             Personal Information
           </CardTitle>
           <Badge variant="secondary" className="mb-4">
-            {profileData.role === 'doctor' ? 'Doctor Profile' : 'Patient Profile'}
+            {userRole === 'clinician' ? 'Clinician Profile' : userRole === 'patient' ? 'Patient Profile' : 'Admin Profile'}
           </Badge>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -270,7 +279,7 @@ export const ProfilePage = ({ onSignOut }: ProfilePageProps) => {
         </CardContent>
       </Card>
 
-      {profileData.role === 'doctor' && (
+      {userRole === 'clinician' && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -343,7 +352,7 @@ export const ProfilePage = ({ onSignOut }: ProfilePageProps) => {
         </Card>
       )}
 
-      {profileData.role === 'patient' && (
+      {userRole === 'patient' && (
         <>
           <Card>
             <CardHeader>

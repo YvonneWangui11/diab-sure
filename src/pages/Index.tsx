@@ -45,14 +45,14 @@ const Index = () => {
 
   const loadUserRole = async (userId: string) => {
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
+      const { data: roleData } = await supabase
+        .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
       
-      if (profile) {
-        setUserRole(profile.role);
+      if (roleData) {
+        setUserRole(roleData.role);
       }
     } catch (error) {
       console.error('Error loading user role:', error);
@@ -78,7 +78,7 @@ const Index = () => {
   const renderCurrentPage = () => {
     switch (currentPage) {
       case "dashboard":
-        return userRole === 'doctor' ? <DoctorDashboard /> : <Dashboard />;
+        return userRole === 'clinician' ? <DoctorDashboard /> : <Dashboard />;
       case "glucose":
         return <GlucoseTracking />;
       case "medication":
@@ -94,7 +94,7 @@ const Index = () => {
       case "profile":
         return <ProfilePage onSignOut={handleSignOut} />;
       default:
-        return userRole === 'doctor' ? <DoctorDashboard /> : <Dashboard />;
+        return userRole === 'clinician' ? <DoctorDashboard /> : <Dashboard />;
     }
   };
 

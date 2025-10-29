@@ -8,109 +8,112 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Medical theme colors */
-    --background: 210 20% 98%;
-    --foreground: 210 15% 15%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 210 15% 15%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 15% 15%;
-
-    --primary: 210 85% 40%;
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 210 85% 35%;
-
-    --secondary: 160 60% 45%;
+    /* DiabeSure Pink-Purple Gradient Theme */
+    --background: 0 0% 100%;
+    --foreground: 280 10% 20%;
+    
+    /* Primary gradient colors - soft pink to purple */
+    --primary: 339 100% 91%; /* #FAD1D9 - soft pink */
+    --primary-foreground: 280 60% 30%;
+    --primary-glow: 268 72% 78%; /* #B99DF1 - soft purple */
+    
+    --secondary: 268 72% 78%; /* Using purple as secondary */
     --secondary-foreground: 0 0% 100%;
-    --secondary-hover: 160 60% 40%;
-
-    --muted: 210 20% 95%;
-    --muted-foreground: 210 15% 45%;
-
-    --accent: 45 95% 60%;
-    --accent-foreground: 210 15% 15%;
-
-    --success: 142 76% 36%;
+    
+    --muted: 339 60% 95%;
+    --muted-foreground: 280 10% 45%;
+    
+    --accent: 268 60% 88%;
+    --accent-foreground: 280 60% 30%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 280 10% 20%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 280 10% 20%;
+    
+    --border: 339 30% 88%;
+    --input: 339 30% 88%;
+    --ring: 268 72% 78%;
+    
+    /* Chart colors - harmonious with theme */
+    --chart-1: 339 100% 75%; /* Pink family */
+    --chart-2: 268 72% 65%; /* Purple family */
+    --chart-3: 300 60% 70%; /* Magenta family */
+    --chart-4: 200 60% 65%; /* Complementary blue */
+    --chart-5: 150 50% 60%; /* Success green */
+    
+    --success: 150 60% 50%;
     --success-foreground: 0 0% 100%;
-
+    
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 210 20% 90%;
-    --input: 210 20% 90%;
-    --ring: 210 85% 40%;
-
-    /* Medical gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(210 85% 40%), hsl(210 85% 50%));
-    --gradient-secondary: linear-gradient(135deg, hsl(160 60% 45%), hsl(160 60% 55%));
-    --gradient-hero: linear-gradient(135deg, hsl(210 85% 40%), hsl(160 60% 45%));
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 20% 98%));
-
-    /* Medical shadows */
-    --shadow-medical: 0 4px 20px -2px hsl(210 85% 40% / 0.1);
-    --shadow-card: 0 2px 10px -2px hsl(210 20% 20% / 0.1);
-    --shadow-elevated: 0 8px 30px -4px hsl(210 85% 40% / 0.15);
-
-    --radius: 0.5rem;
-
+    
+    --radius: 1rem;
+    
     --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-foreground: 280 10% 20%;
+    --sidebar-primary: 268 72% 78%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 339 60% 95%;
+    --sidebar-accent-foreground: 280 10% 20%;
+    --sidebar-border: 339 30% 88%;
+    --sidebar-ring: 268 72% 78%;
+  }
+  
+  .dark {
+    --background: 280 20% 10%;
+    --foreground: 0 0% 95%;
+    
+    --primary: 339 70% 40%; /* Darker pink */
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 268 60% 50%; /* Darker purple */
+    
+    --secondary: 268 60% 35%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 280 15% 20%;
+    --muted-foreground: 0 0% 60%;
+    
+    --accent: 268 50% 30%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --card: 280 20% 12%;
+    --card-foreground: 0 0% 95%;
+    
+    --popover: 280 20% 12%;
+    --popover-foreground: 0 0% 95%;
+    
+    --border: 280 15% 25%;
+    --input: 280 15% 25%;
+    --ring: 268 60% 50%;
+    
+    --chart-1: 339 70% 55%;
+    --chart-2: 268 60% 50%;
+    --chart-3: 300 55% 55%;
+    --chart-4: 200 55% 55%;
+    --chart-5: 150 55% 50%;
+    
+    --success: 150 60% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 90% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    --sidebar-background: 280 20% 10%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 268 60% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 280 15% 20%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 280 15% 25%;
+    --sidebar-ring: 268 60% 50%;
   }
 }
 

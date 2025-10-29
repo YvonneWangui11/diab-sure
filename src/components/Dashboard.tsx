@@ -25,6 +25,9 @@ interface UserProfile {
   email: string;
   phone?: string;
   date_of_birth?: string;
+}
+
+interface UserRole {
   role: string;
 }
 
@@ -67,6 +70,7 @@ export const Dashboard = () => {
   const [medicationLogs, setMedicationLogs] = useState<MedicationLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [userRole, setUserRole] = useState<string>('patient');
   const { toast } = useToast();
 
   const loadUserData = async () => {
@@ -84,8 +88,19 @@ export const Dashboard = () => {
       if (profile) {
         setUserProfile(profile);
 
-        // Load patient details if user is a patient
-        if (profile.role === 'patient') {
+        // Check if user has patient role
+        const { data: userRoles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
+
+        const hasPatientRole = userRoles?.some(r => r.role === 'patient');
+        
+        // Set the user role
+        const role = userRoles?.[0]?.role || 'patient';
+        setUserRole(role);
+
+        if (hasPatientRole) {
           const { data: patientData } = await supabase
             .from('patient_details')
             .select('*')
@@ -475,7 +490,7 @@ export const Dashboard = () => {
       )}
 
       {activeTab === 'medications' && userProfile && (
-        <MedicationManager userRole={userProfile.role} userId={userProfile.user_id} />
+        <MedicationManager userRole={userRole} userId={userProfile.user_id} />
       )}
     </div>
   );
