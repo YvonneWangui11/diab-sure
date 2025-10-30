@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Dashboard } from "@/components/Dashboard";
 import { DoctorDashboard } from "@/components/DoctorDashboard";
-import { GlucoseTracking } from "@/components/GlucoseTracking";
-import { MedicationTracking } from "@/components/MedicationTracking";
 import { NutritionTracking } from "@/components/NutritionTracking";
 import { ExerciseTracking } from "@/components/ExerciseTracking";
+import { AppointmentViewing } from "@/components/AppointmentViewing";
+import { ProgressDashboard } from "@/components/ProgressDashboard";
 import { ProfilePage } from "@/components/ProfilePage";
 import { LandingPage } from "@/components/LandingPage";
 import { AuthPage } from "@/components/AuthPage";
@@ -16,12 +16,14 @@ const Index = () => {
   const [userRole, setUserRole] = useState<string>("");
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [showAuth, setShowAuth] = useState(false);
+  const [userId, setUserId] = useState<string>("");
 
   useEffect(() => {
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setIsLoggedIn(true);
+        setUserId(session.user.id);
         loadUserRole(session.user.id);
       }
     });
@@ -31,10 +33,12 @@ const Index = () => {
       async (event, session) => {
         if (event === 'SIGNED_IN' && session) {
           setIsLoggedIn(true);
+          setUserId(session.user.id);
           await loadUserRole(session.user.id);
         } else if (event === 'SIGNED_OUT') {
           setIsLoggedIn(false);
           setUserRole("");
+          setUserId("");
           setCurrentPage("dashboard");
         }
       }
@@ -71,6 +75,7 @@ const Index = () => {
     await supabase.auth.signOut();
     setIsLoggedIn(false);
     setUserRole("");
+    setUserId("");
     setShowAuth(false);
     setCurrentPage("dashboard");
   };
@@ -79,16 +84,14 @@ const Index = () => {
     switch (currentPage) {
       case "dashboard":
         return userRole === 'clinician' ? <DoctorDashboard /> : <Dashboard />;
-      case "glucose":
-        return <GlucoseTracking />;
-      case "medication":
-        return <MedicationTracking />;
       case "nutrition":
         return <NutritionTracking />;
       case "exercise":
         return <ExerciseTracking />;
       case "appointments":
-        return <div className="p-8 text-center"><h2 className="text-2xl font-bold">Appointments Module Coming Soon</h2></div>;
+        return userId ? <AppointmentViewing userId={userId} /> : null;
+      case "progress":
+        return userId ? <ProgressDashboard userId={userId} /> : null;
       case "education":
         return <div className="p-8 text-center"><h2 className="text-2xl font-bold">Education Module Coming Soon</h2></div>;
       case "profile":

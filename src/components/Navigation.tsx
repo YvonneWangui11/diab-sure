@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, X, Heart, Activity, Calendar, BookOpen, User, LogOut } from "lucide-react";
+import { Menu, X, Heart, Activity, Calendar, BookOpen, User, LogOut, TrendingUp, Apple, Dumbbell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface NavigationProps {
@@ -13,11 +13,10 @@ export const Navigation = ({ currentPage, onPageChange, onSignOut }: NavigationP
 
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: Activity },
-    { id: "glucose", label: "Glucose Tracking", icon: Heart },
-    { id: "medication", label: "Medication", icon: Calendar },
-    { id: "nutrition", label: "Nutrition", icon: BookOpen },
-    { id: "exercise", label: "Exercise", icon: Activity },
+    { id: "nutrition", label: "Nutrition", icon: Apple },
+    { id: "exercise", label: "Exercise", icon: Dumbbell },
     { id: "appointments", label: "Appointments", icon: Calendar },
+    { id: "progress", label: "Progress", icon: TrendingUp },
     { id: "education", label: "Education", icon: BookOpen },
     { id: "profile", label: "Profile", icon: User },
   ];

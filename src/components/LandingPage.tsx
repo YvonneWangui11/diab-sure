@@ -12,8 +12,12 @@ import {
   Users,
   Smartphone,
   ArrowRight,
-  CheckCircle
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  MessageCircle
 } from "lucide-react";
+import { useState, useEffect } from "react";
 import heroImage from "@/assets/hero-medical.jpg";
 
 interface LandingPageProps {
@@ -21,6 +25,56 @@ interface LandingPageProps {
 }
 
 export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  const carouselSlides = [
+    {
+      title: "Medication Tracking",
+      description: "Never miss a dose with smart reminders. Track your medications prescribed by your clinician and mark them as taken with a simple tick.",
+      icon: Pill,
+      color: "text-secondary"
+    },
+    {
+      title: "Meal & Exercise Logging",
+      description: "Log your meals and physical activities. Keep track of your nutrition and exercise patterns to maintain a healthy lifestyle.",
+      icon: Apple,
+      color: "text-accent"
+    },
+    {
+      title: "Progress Graphs",
+      description: "Visualize your health journey with intuitive charts. See your medication adherence, exercise trends, and overall progress at a glance.",
+      icon: BarChart3,
+      color: "text-primary"
+    },
+    {
+      title: "Clinician Oversight",
+      description: "Your healthcare provider can monitor your progress, prescribe medications digitally, and schedule appointments seamlessly.",
+      icon: Users,
+      color: "text-secondary"
+    },
+    {
+      title: "AskYvonne Assistant",
+      description: "Get help navigating the app and learn about diabetes self-management. AskYvonne provides educational support and app guidance (non-diagnostic).",
+      icon: MessageCircle,
+      color: "text-accent"
+    }
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % carouselSlides.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % carouselSlides.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + carouselSlides.length) % carouselSlides.length);
+  };
+
   const features = [
     {
       icon: Heart,
@@ -71,17 +125,17 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="text-white">
               <Badge className="bg-white/20 text-white border-white/30 mb-6">
-                Powered by AI Technology
+                JKUAT Hospital - Kenya
               </Badge>
-              <h1 className="text-4xl md:text-6xl font-bold mb-6">
+              <h1 className="text-4xl md:text-6xl font-bold mb-4">
                 DiabeSure
               </h1>
-              <p className="text-xl md:text-2xl mb-4 text-white/90">
-                Comprehensive Diabetes Management Platform
+              <p className="text-xl md:text-2xl mb-4 text-white/90 font-medium">
+                Own your routine. See your progress.
               </p>
               <p className="text-lg mb-8 text-white/80">
-                Empowering patients at JKUAT Hospital with AI-powered tools for effective 
-                diabetes self-management, medication tracking, and lifestyle monitoring.
+                Comprehensive diabetes management for Type 2 patients at JKUAT Hospital. 
+                Track medications, log meals and exercise, visualize progress, and stay connected with your clinician.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button 
@@ -92,17 +146,70 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
                   Get Started
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-                <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
-                  Learn More
-                </Button>
               </div>
             </div>
-            <div className="relative">
-              <img 
-                src={heroImage} 
-                alt="Medical Technology" 
-                className="rounded-lg shadow-elevated w-full"
-              />
+            
+            {/* Feature Carousel */}
+            <div className="relative bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
+              <div className="text-center text-white min-h-[300px] flex flex-col justify-center">
+                {carouselSlides.map((slide, index) => {
+                  const Icon = slide.icon;
+                  return (
+                    <div
+                      key={index}
+                      className={`transition-all duration-500 ${
+                        index === currentSlide
+                          ? 'opacity-100 scale-100'
+                          : 'opacity-0 scale-95 absolute inset-0 pointer-events-none'
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4">
+                          <Icon className={`h-8 w-8 ${slide.color}`} />
+                        </div>
+                        <h3 className="text-2xl font-bold mb-3">{slide.title}</h3>
+                        <p className="text-white/90 text-lg max-w-md">{slide.description}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Carousel Controls */}
+              <div className="flex items-center justify-between mt-8">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={prevSlide}
+                  className="text-white hover:bg-white/20"
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </Button>
+                
+                <div className="flex gap-2">
+                  {carouselSlides.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentSlide(index)}
+                      className={`w-2 h-2 rounded-full transition-all ${
+                        index === currentSlide
+                          ? 'bg-white w-8'
+                          : 'bg-white/40 hover:bg-white/60'
+                      }`}
+                      aria-label={`Go to slide ${index + 1}`}
+                    />
+                  ))}
+                </div>
+                
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={nextSlide}
+                  className="text-white hover:bg-white/20"
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
