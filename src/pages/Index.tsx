@@ -85,9 +85,9 @@ const Index = () => {
       case "dashboard":
         return userRole === 'clinician' ? <DoctorDashboard /> : <Dashboard />;
       case "nutrition":
-        return <NutritionTracking />;
+        return userId ? <NutritionTracking userId={userId} /> : null;
       case "exercise":
-        return <ExerciseTracking />;
+        return userId ? <ExerciseTracking userId={userId} /> : null;
       case "appointments":
         return userId ? <AppointmentViewing userId={userId} /> : null;
       case "progress":

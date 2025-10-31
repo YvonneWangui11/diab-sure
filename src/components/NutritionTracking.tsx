@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,8 +72,14 @@ const mealPlans = [
   }
 ];
 
-export const NutritionTracking = () => {
+interface NutritionTrackingProps {
+  userId: string;
+}
+
+export const NutritionTracking = ({ userId }: NutritionTrackingProps) => {
   const [mealLogs, setMealLogs] = useState<MealLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
   const [newMeal, setNewMeal] = useState({
     name: "",
     calories: "",
@@ -98,30 +106,101 @@ export const NutritionTracking = () => {
     { calories: 0, carbs: 0, protein: 0, fat: 0 }
   );
 
-  const addMeal = () => {
+  const loadMealLogs = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('meal_logs')
+        .select('*')
+        .eq('patient_id', userId)
+        .gte('date_time', new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
+        .order('date_time', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedMeals: MealLog[] = data?.map(log => ({
+        id: log.id,
+        name: log.description,
+        calories: 0, // Calculate from description or add separate field
+        carbs: 0,
+        protein: 0,
+        fat: 0,
+        time: new Date(log.date_time).toLocaleTimeString(),
+        type: (log.meal_type || 'snack') as any
+      })) || [];
+
+      setMealLogs(formattedMeals);
+    } catch (error) {
+      console.error('Error loading meals:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load meal logs",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addMeal = async () => {
     if (!newMeal.name || !newMeal.calories) return;
 
-    const meal: MealLog = {
-      id: Date.now().toString(),
-      name: newMeal.name,
-      calories: Number(newMeal.calories),
-      carbs: Number(newMeal.carbs) || 0,
-      protein: Number(newMeal.protein) || 0,
-      fat: Number(newMeal.fat) || 0,
-      time: new Date().toLocaleTimeString(),
-      type: newMeal.type
-    };
+    try {
+      const { error } = await supabase
+        .from('meal_logs')
+        .insert({
+          patient_id: userId,
+          meal_type: newMeal.type,
+          description: `${newMeal.name} - ${newMeal.calories}cal, C:${newMeal.carbs}g, P:${newMeal.protein}g, F:${newMeal.fat}g`,
+          portion_size: newMeal.calories,
+        });
 
-    setMealLogs([...mealLogs, meal]);
-    setNewMeal({
-      name: "",
-      calories: "",
-      carbs: "",
-      protein: "",
-      fat: "",
-      type: "breakfast"
-    });
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Meal logged successfully",
+      });
+
+      setNewMeal({
+        name: "",
+        calories: "",
+        carbs: "",
+        protein: "",
+        fat: "",
+        type: "breakfast"
+      });
+
+      loadMealLogs();
+    } catch (error) {
+      console.error('Error adding meal:', error);
+      toast({
+        title: "Error",
+        description: "Failed to log meal",
+        variant: "destructive",
+      });
+    }
   };
+
+  useEffect(() => {
+    loadMealLogs();
+
+    const subscription = supabase
+      .channel('meal-logs-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'meal_logs',
+        filter: `patient_id=eq.${userId}`
+      }, () => {
+        loadMealLogs();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [userId]);
 
   return (
     <div className="space-y-6">

@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,8 +131,14 @@ const exerciseLibrary = {
   ]
 };
 
-export const ExerciseTracking = () => {
+interface ExerciseTrackingProps {
+  userId: string;
+}
+
+export const ExerciseTracking = ({ userId }: ExerciseTrackingProps) => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [newExercise, setNewExercise] = useState({
@@ -153,32 +161,101 @@ export const ExerciseTracking = () => {
     caloriesBurned: exercises.reduce((total, ex) => total + ex.calories, 0)
   };
 
-  const addExercise = () => {
+  const loadExercises = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('exercise_logs')
+        .select('*')
+        .eq('patient_id', userId)
+        .gte('date_time', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .order('date_time', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedExercises: Exercise[] = data?.map(log => ({
+        id: log.id,
+        name: log.exercise_type,
+        type: 'cardio',
+        duration: log.duration_minutes,
+        calories: log.duration_minutes * 5,
+        intensity: (log.intensity || 'moderate') as any,
+        date: new Date(log.date_time).toISOString().split('T')[0],
+        notes: log.note
+      })) || [];
+
+      setExercises(formattedExercises);
+    } catch (error) {
+      console.error('Error loading exercises:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load exercise logs",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addExercise = async () => {
     if (!newExercise.name || !newExercise.duration) return;
 
-    const duration = Number(newExercise.duration);
-    const caloriesPerMin = getCaloriesPerMinute(newExercise.name, newExercise.type);
-    
-    const exercise: Exercise = {
-      id: Date.now().toString(),
-      name: newExercise.name,
-      type: newExercise.type,
-      duration,
-      calories: Math.round(duration * caloriesPerMin),
-      intensity: newExercise.intensity,
-      date: new Date().toISOString().split('T')[0],
-      notes: newExercise.notes
-    };
+    try {
+      const { error } = await supabase
+        .from('exercise_logs')
+        .insert({
+          patient_id: userId,
+          exercise_type: newExercise.name,
+          duration_minutes: Number(newExercise.duration),
+          intensity: newExercise.intensity,
+          note: newExercise.notes || null,
+        });
 
-    setExercises([exercise, ...exercises]);
-    setNewExercise({
-      name: "",
-      type: "cardio",
-      duration: "",
-      intensity: "moderate",
-      notes: ""
-    });
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Exercise logged successfully",
+      });
+
+      setNewExercise({
+        name: "",
+        type: "cardio",
+        duration: "",
+        intensity: "moderate",
+        notes: ""
+      });
+
+      loadExercises();
+    } catch (error) {
+      console.error('Error adding exercise:', error);
+      toast({
+        title: "Error",
+        description: "Failed to log exercise",
+        variant: "destructive",
+      });
+    }
   };
+
+  useEffect(() => {
+    loadExercises();
+
+    const subscription = supabase
+      .channel('exercise-logs-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'exercise_logs',
+        filter: `patient_id=eq.${userId}`
+      }, () => {
+        loadExercises();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [userId]);
 
   const getCaloriesPerMinute = (exerciseName: string, type: string) => {
     const category = exerciseLibrary[type as keyof typeof exerciseLibrary];

@@ -6,12 +6,17 @@ import { Users, Calendar, Activity, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { MedicationManager } from "./MedicationManager";
+import { PatientList } from "./PatientList";
+import { AppointmentScheduling } from "./AppointmentScheduling";
+import { PatientProgressView } from "./PatientProgressView";
 
 export const DoctorDashboard = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [doctorDetails, setDoctorDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [selectedPatientName, setSelectedPatientName] = useState<string>('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -122,15 +127,27 @@ export const DoctorDashboard = () => {
       <div className="flex space-x-1 mb-6">
         <Button 
           variant={activeTab === 'overview' ? 'default' : 'ghost'}
-          onClick={() => setActiveTab('overview')}
+          onClick={() => { setActiveTab('overview'); setSelectedPatientId(null); }}
         >
           Overview
+        </Button>
+        <Button 
+          variant={activeTab === 'patients' ? 'default' : 'ghost'}
+          onClick={() => setActiveTab('patients')}
+        >
+          My Patients
+        </Button>
+        <Button 
+          variant={activeTab === 'appointments' ? 'default' : 'ghost'}
+          onClick={() => setActiveTab('appointments')}
+        >
+          Appointments
         </Button>
         <Button 
           variant={activeTab === 'medications' ? 'default' : 'ghost'}
           onClick={() => setActiveTab('medications')}
         >
-          Patient Medications
+          Medications
         </Button>
       </div>
 
@@ -212,8 +229,31 @@ export const DoctorDashboard = () => {
         </>
       )}
 
+      {activeTab === 'patients' && userProfile && (
+        selectedPatientId ? (
+          <div className="space-y-4">
+            <Button variant="ghost" onClick={() => setSelectedPatientId(null)}>
+              ← Back to Patient List
+            </Button>
+            <PatientProgressView patientId={selectedPatientId} patientName={selectedPatientName} />
+          </div>
+        ) : (
+          <PatientList 
+            doctorId={userProfile.user_id} 
+            onSelectPatient={(patientId, patientName) => {
+              setSelectedPatientId(patientId);
+              setSelectedPatientName(patientName);
+            }} 
+          />
+        )
+      )}
+
+      {activeTab === 'appointments' && userProfile && (
+        <AppointmentScheduling doctorId={userProfile.user_id} />
+      )}
+
       {activeTab === 'medications' && userProfile && (
-        <MedicationManager userRole={userProfile.role} userId={userProfile.user_id} />
+        <MedicationManager userRole="doctor" userId={userProfile.user_id} />
       )}
     </div>
   );
