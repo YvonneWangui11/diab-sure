@@ -18,7 +18,9 @@ import {
   MessageCircle
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import heroImage from "@/assets/hero-medical.jpg";
+import heroImage1 from "@/assets/hero-1.jpg";
+import heroImage2 from "@/assets/hero-2.jpg";
+import heroImage3 from "@/assets/hero-3.jpg";
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -26,6 +28,9 @@ interface LandingPageProps {
 
 export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [currentImageSlide, setCurrentImageSlide] = useState(0);
+  
+  const heroImages = [heroImage1, heroImage2, heroImage3];
 
   const carouselSlides = [
     {
@@ -65,6 +70,13 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
       setCurrentSlide((prev) => (prev + 1) % carouselSlides.length);
     }, 5000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const imageTimer = setInterval(() => {
+      setCurrentImageSlide((prev) => (prev + 1) % heroImages.length);
+    }, 6000);
+    return () => clearInterval(imageTimer);
   }, []);
 
   const nextSlide = () => {
@@ -119,11 +131,31 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-hero">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="text-white">
+      {/* Hero Section with Image Carousel Background */}
+      <section className="relative overflow-hidden min-h-screen">
+        {/* Background Image Carousel */}
+        <div className="absolute inset-0">
+          {heroImages.map((image, index) => (
+            <div
+              key={index}
+              className={`absolute inset-0 transition-opacity duration-1000 ${
+                index === currentImageSlide ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <img 
+                src={image} 
+                alt={`Healthcare scene ${index + 1}`}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))}
+          {/* Dark gradient overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-hero-overlay"></div>
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center min-h-[85vh]">
+            <div className="text-white z-10">
               <Badge className="bg-white/20 text-white border-white/30 mb-6">
                 JKUAT Hospital - Kenya
               </Badge>
