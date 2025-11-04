@@ -10,7 +10,7 @@ import { ProgressDashboard } from "@/components/ProgressDashboard";
 import { ProfilePage } from "@/components/ProfilePage";
 import { LandingPage } from "@/components/LandingPage";
 import { AuthPage } from "@/components/AuthPage";
-import { AskYvonne } from "@/components/AskYvonne";
+import { FloatingYvonneButton } from "@/components/FloatingYvonneButton";
 import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
@@ -99,8 +99,6 @@ const Index = () => {
         return <div className="p-8 text-center"><h2 className="text-2xl font-bold">Education Module Coming Soon</h2></div>;
       case "profile":
         return <ProfilePage onSignOut={handleSignOut} />;
-      case "ask-yvonne":
-        return <AskYvonne />;
       default:
         if (userRole === 'admin') return <AdminDashboard />;
         return userRole === 'clinician' ? <DoctorDashboard /> : <Dashboard />;
@@ -125,6 +123,7 @@ const Index = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {renderCurrentPage()}
       </main>
+      <FloatingYvonneButton />
     </div>
   );
 };

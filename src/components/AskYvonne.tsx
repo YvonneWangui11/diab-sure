@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, Send, Bot, User } from "lucide-react";
+import yvonneAvatar from '@/assets/yvonne-avatar.png';
+import { Send, Bot, User } from "lucide-react";
 
 interface Message {
   role: "user" | "assistant";
@@ -137,83 +138,76 @@ export const AskYvonne = () => {
   };
 
   return (
-    <Card className="h-[600px] flex flex-col">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <MessageCircle className="h-5 w-5" />
-          Ask Yvonne
-        </CardTitle>
-        <CardDescription>
-          Your AI health assistant for diabetes management
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden">
-        <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
-          <div className="space-y-4">
-            {messages.length === 0 && (
-              <div className="text-center text-muted-foreground py-8">
-                <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Start a conversation with Yvonne</p>
-                <p className="text-sm mt-2">Ask about diabetes management, nutrition, or exercise</p>
-              </div>
-            )}
-            {messages.map((message, index) => (
+    <div className="h-full flex flex-col gap-4 p-4">
+      <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
+        <div className="space-y-4">
+          {messages.length === 0 && (
+            <div className="text-center text-muted-foreground py-8">
+              <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Start a conversation with Yvonne</p>
+              <p className="text-sm mt-2">Ask about diabetes management, nutrition, or exercise</p>
+            </div>
+          )}
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`flex gap-3 ${
+                message.role === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
+              {message.role === "assistant" && (
+                <img 
+                  src={yvonneAvatar} 
+                  alt="Yvonne" 
+                  className="h-8 w-8 rounded-full flex-shrink-0 object-cover"
+                />
+              )}
               <div
-                key={index}
-                className={`flex gap-3 ${
-                  message.role === "user" ? "justify-end" : "justify-start"
+                className={`max-w-[80%] rounded-lg p-3 ${
+                  message.role === "user"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted"
                 }`}
               >
-                {message.role === "assistant" && (
-                  <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                    <Bot className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                )}
-                <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
-                  }`}
-                >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                </div>
-                {message.role === "user" && (
-                  <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-                    <User className="h-5 w-5 text-secondary-foreground" />
-                  </div>
-                )}
+                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
               </div>
-            ))}
-            {isLoading && messages[messages.length - 1]?.role === "user" && (
-              <div className="flex gap-3">
-                <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                  <Bot className="h-5 w-5 text-primary-foreground" />
+              {message.role === "user" && (
+                <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                  <User className="h-5 w-5 text-secondary-foreground" />
                 </div>
-                <div className="bg-muted rounded-lg p-3">
-                  <div className="flex gap-1">
-                    <div className="h-2 w-2 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <div className="h-2 w-2 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <div className="h-2 w-2 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                  </div>
+              )}
+            </div>
+          ))}
+          {isLoading && messages[messages.length - 1]?.role === "user" && (
+            <div className="flex gap-3">
+              <img 
+                src={yvonneAvatar} 
+                alt="Yvonne" 
+                className="h-8 w-8 rounded-full flex-shrink-0 object-cover"
+              />
+              <div className="bg-muted rounded-lg p-3">
+                <div className="flex gap-1">
+                  <div className="h-2 w-2 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <div className="h-2 w-2 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <div className="h-2 w-2 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                 </div>
               </div>
-            )}
-          </div>
-        </ScrollArea>
-        <div className="flex gap-2">
-          <Input
-            placeholder="Ask Yvonne anything about diabetes management..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            disabled={isLoading}
-          />
-          <Button onClick={handleSend} disabled={isLoading || !input.trim()}>
-            <Send className="h-4 w-4" />
-          </Button>
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </ScrollArea>
+      <div className="flex gap-2">
+        <Input
+          placeholder="Ask Yvonne anything about diabetes management..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyPress={handleKeyPress}
+          disabled={isLoading}
+        />
+        <Button onClick={handleSend} disabled={isLoading || !input.trim()}>
+          <Send className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
   );
 };
