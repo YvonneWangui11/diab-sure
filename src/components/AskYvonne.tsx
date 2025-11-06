@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import yvonneAvatar from '@/assets/yvonne-avatar.png';
-import { Send, Bot, User } from "lucide-react";
+import { Send, Bot, User, Mic, MicOff } from "lucide-react";
 
 interface Message {
   role: "user" | "assistant";
@@ -16,7 +16,11 @@ export const AskYvonne = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -137,6 +141,97 @@ export const AskYvonne = () => {
     }
   };
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm',
+      });
+      
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        await transcribeAudio(audioBlob);
+        
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error: any) {
+      console.error('Recording error:', error);
+      toast({
+        variant: "destructive",
+        title: "Microphone Error",
+        description: "Could not access microphone. Please check permissions.",
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const transcribeAudio = async (audioBlob: Blob) => {
+    setIsTranscribing(true);
+    
+    try {
+      // Convert blob to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      
+      reader.onloadend = async () => {
+        const base64Audio = reader.result as string;
+        const base64Data = base64Audio.split(',')[1];
+
+        const response = await fetch(
+          "https://iynqladfgyhfpwadmtgd.supabase.co/functions/v1/transcribe-audio",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5bnFsYWRmZ3loZnB3YWRtdGdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3ODEwODgsImV4cCI6MjA2OTM1NzA4OH0.Jbp5oP399VeaPkJBoxbMltKiK2DjKVhSk5IAdYK8FZ8`,
+            },
+            body: JSON.stringify({ audio: base64Data }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Transcription failed");
+        }
+
+        const { text } = await response.json();
+        setInput(text);
+        setIsTranscribing(false);
+        
+        toast({
+          title: "Voice Transcribed",
+          description: "Your message has been transcribed successfully.",
+        });
+      };
+    } catch (error: any) {
+      console.error('Transcription error:', error);
+      setIsTranscribing(false);
+      toast({
+        variant: "destructive",
+        title: "Transcription Error",
+        description: "Failed to transcribe audio. Please try again.",
+      });
+    }
+  };
+
   return (
     <div className="h-full flex flex-col gap-0">
       <ScrollArea className="flex-1 px-6 py-4" ref={scrollRef}>
@@ -226,17 +321,30 @@ export const AskYvonne = () => {
       </ScrollArea>
       <div className="border-t bg-card/50 backdrop-blur-sm px-6 py-4">
         <div className="flex gap-3 max-w-4xl mx-auto">
+          <Button
+            onClick={isRecording ? stopRecording : startRecording}
+            disabled={isLoading || isTranscribing}
+            size="lg"
+            variant={isRecording ? "destructive" : "outline"}
+            className="h-12 w-12 rounded-full p-0 shadow-lg hover:shadow-xl transition-all"
+          >
+            {isRecording ? (
+              <MicOff className="h-5 w-5 animate-pulse" />
+            ) : (
+              <Mic className="h-5 w-5" />
+            )}
+          </Button>
           <Input
-            placeholder="Ask Dr. Yvonne about diabetes care, nutrition, exercise..."
+            placeholder={isTranscribing ? "Transcribing..." : "Ask Dr. Yvonne about diabetes care, nutrition, exercise..."}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            disabled={isLoading}
+            disabled={isLoading || isRecording || isTranscribing}
             className="flex-1 h-12 px-4 text-base rounded-full border-2 focus:border-primary transition-colors"
           />
           <Button 
             onClick={handleSend} 
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || !input.trim() || isRecording || isTranscribing}
             size="lg"
             className="h-12 w-12 rounded-full p-0 shadow-lg hover:shadow-xl transition-all"
           >
@@ -244,7 +352,9 @@ export const AskYvonne = () => {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground text-center mt-3 max-w-4xl mx-auto">
-          Dr. Yvonne provides general health information. Always consult your healthcare provider for medical advice.
+          {isRecording && "🎤 Recording... Click the microphone button again to stop"}
+          {isTranscribing && "✨ Transcribing your voice..."}
+          {!isRecording && !isTranscribing && "Dr. Yvonne provides general health information. Always consult your healthcare provider for medical advice."}
         </p>
       </div>
     </div>
