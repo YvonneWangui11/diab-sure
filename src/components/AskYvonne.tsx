@@ -138,75 +138,114 @@ export const AskYvonne = () => {
   };
 
   return (
-    <div className="h-full flex flex-col gap-4 p-4">
-      <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
-        <div className="space-y-4">
+    <div className="h-full flex flex-col gap-0">
+      <ScrollArea className="flex-1 px-6 py-4" ref={scrollRef}>
+        <div className="space-y-6 max-w-4xl mx-auto">
           {messages.length === 0 && (
-            <div className="text-center text-muted-foreground py-8">
-              <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Start a conversation with Yvonne</p>
-              <p className="text-sm mt-2">Ask about diabetes management, nutrition, or exercise</p>
+            <div className="text-center py-12">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-6">
+                <img 
+                  src={yvonneAvatar} 
+                  alt="Dr. Yvonne" 
+                  className="h-16 w-16 rounded-full object-cover"
+                />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Welcome! I'm Dr. Yvonne</h3>
+              <p className="text-muted-foreground mb-6">Your AI-powered diabetes care companion</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto text-left">
+                <div className="p-4 rounded-lg bg-card border border-border/50 hover:border-primary/50 transition-colors cursor-pointer" onClick={() => setInput("What should I eat for better blood sugar control?")}>
+                  <p className="text-sm font-medium">💡 Nutrition Tips</p>
+                  <p className="text-xs text-muted-foreground mt-1">Get personalized dietary advice</p>
+                </div>
+                <div className="p-4 rounded-lg bg-card border border-border/50 hover:border-primary/50 transition-colors cursor-pointer" onClick={() => setInput("What exercises are best for managing diabetes?")}>
+                  <p className="text-sm font-medium">🏃 Exercise Guide</p>
+                  <p className="text-xs text-muted-foreground mt-1">Learn about diabetes-friendly workouts</p>
+                </div>
+                <div className="p-4 rounded-lg bg-card border border-border/50 hover:border-primary/50 transition-colors cursor-pointer" onClick={() => setInput("How can I better track my glucose levels?")}>
+                  <p className="text-sm font-medium">📊 Glucose Tracking</p>
+                  <p className="text-xs text-muted-foreground mt-1">Optimize your monitoring routine</p>
+                </div>
+                <div className="p-4 rounded-lg bg-card border border-border/50 hover:border-primary/50 transition-colors cursor-pointer" onClick={() => setInput("Tell me about medication management")}>
+                  <p className="text-sm font-medium">💊 Medication Help</p>
+                  <p className="text-xs text-muted-foreground mt-1">Understand your prescriptions</p>
+                </div>
+              </div>
             </div>
           )}
           {messages.map((message, index) => (
             <div
               key={index}
-              className={`flex gap-3 ${
+              className={`flex gap-4 ${
                 message.role === "user" ? "justify-end" : "justify-start"
-              }`}
+              } animate-in fade-in slide-in-from-bottom-2 duration-300`}
             >
               {message.role === "assistant" && (
-                <img 
-                  src={yvonneAvatar} 
-                  alt="Yvonne" 
-                  className="h-8 w-8 rounded-full flex-shrink-0 object-cover"
-                />
+                <div className="flex-shrink-0">
+                  <img 
+                    src={yvonneAvatar} 
+                    alt="Dr. Yvonne" 
+                    className="h-10 w-10 rounded-full border-2 border-primary/20 object-cover shadow-sm"
+                  />
+                </div>
               )}
               <div
-                className={`max-w-[80%] rounded-lg p-3 ${
+                className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${
                   message.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
+                    ? "bg-primary text-primary-foreground rounded-br-sm"
+                    : "bg-card border border-border/50 rounded-bl-sm"
                 }`}
               >
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
               </div>
               {message.role === "user" && (
-                <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-secondary to-secondary/80 flex items-center justify-center flex-shrink-0 shadow-sm border-2 border-secondary/20">
                   <User className="h-5 w-5 text-secondary-foreground" />
                 </div>
               )}
             </div>
           ))}
           {isLoading && messages[messages.length - 1]?.role === "user" && (
-            <div className="flex gap-3">
-              <img 
-                src={yvonneAvatar} 
-                alt="Yvonne" 
-                className="h-8 w-8 rounded-full flex-shrink-0 object-cover"
-              />
-              <div className="bg-muted rounded-lg p-3">
-                <div className="flex gap-1">
-                  <div className="h-2 w-2 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <div className="h-2 w-2 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <div className="h-2 w-2 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+            <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="flex-shrink-0">
+                <img 
+                  src={yvonneAvatar} 
+                  alt="Dr. Yvonne" 
+                  className="h-10 w-10 rounded-full border-2 border-primary/20 object-cover shadow-sm"
+                />
+              </div>
+              <div className="bg-card border border-border/50 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+                <div className="flex gap-1.5">
+                  <div className="h-2.5 w-2.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <div className="h-2.5 w-2.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <div className="h-2.5 w-2.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                 </div>
               </div>
             </div>
           )}
         </div>
       </ScrollArea>
-      <div className="flex gap-2">
-        <Input
-          placeholder="Ask Yvonne anything about diabetes management..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          disabled={isLoading}
-        />
-        <Button onClick={handleSend} disabled={isLoading || !input.trim()}>
-          <Send className="h-4 w-4" />
-        </Button>
+      <div className="border-t bg-card/50 backdrop-blur-sm px-6 py-4">
+        <div className="flex gap-3 max-w-4xl mx-auto">
+          <Input
+            placeholder="Ask Dr. Yvonne about diabetes care, nutrition, exercise..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            disabled={isLoading}
+            className="flex-1 h-12 px-4 text-base rounded-full border-2 focus:border-primary transition-colors"
+          />
+          <Button 
+            onClick={handleSend} 
+            disabled={isLoading || !input.trim()}
+            size="lg"
+            className="h-12 w-12 rounded-full p-0 shadow-lg hover:shadow-xl transition-all"
+          >
+            <Send className="h-5 w-5" />
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground text-center mt-3 max-w-4xl mx-auto">
+          Dr. Yvonne provides general health information. Always consult your healthcare provider for medical advice.
+        </p>
       </div>
     </div>
   );
