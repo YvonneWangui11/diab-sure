@@ -63,11 +63,16 @@ interface MedicationLog {
   notes?: string;
 }
 
-export const Dashboard = () => {
+interface DashboardProps {
+  onNavigate?: (page: string) => void;
+}
+
+export const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [patientDetails, setPatientDetails] = useState<PatientDetails | null>(null);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [medicationLogs, setMedicationLogs] = useState<MedicationLog[]>([]);
+  const [latestGlucose, setLatestGlucose] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [userRole, setUserRole] = useState<string>('patient');
@@ -130,6 +135,19 @@ export const Dashboard = () => {
 
           if (logsError) throw logsError;
           setMedicationLogs(logs || []);
+
+          // Load latest glucose reading
+          const { data: glucoseData } = await supabase
+            .from('glucose_readings')
+            .select('glucose_value')
+            .eq('patient_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (glucoseData) {
+            setLatestGlucose(glucoseData.glucose_value);
+          }
         }
       }
     } catch (error) {
@@ -299,13 +317,20 @@ export const Dashboard = () => {
         <>
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="bg-gradient-card shadow-card cursor-pointer hover:shadow-lg transition-shadow">
+            <Card 
+              className="bg-gradient-card shadow-card cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => onNavigate?.('glucose')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Blood Glucose</p>
-                    <p className="text-2xl font-bold text-foreground">--</p>
-                    <p className="text-xs text-muted-foreground">No readings yet</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {latestGlucose ? `${latestGlucose}` : '--'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {latestGlucose ? 'mg/dL' : 'No readings yet'}
+                    </p>
                   </div>
                   <Heart className="h-8 w-8 text-primary" />
                 </div>
@@ -330,26 +355,32 @@ export const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-card shadow-card cursor-pointer hover:shadow-lg transition-shadow">
+            <Card 
+              className="bg-gradient-card shadow-card cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => onNavigate?.('exercise')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Exercise Today</p>
                     <p className="text-2xl font-bold text-foreground">--</p>
-                    <p className="text-xs text-muted-foreground">No data yet</p>
+                    <p className="text-xs text-muted-foreground">Track workout</p>
                   </div>
                   <Activity className="h-8 w-8 text-accent" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-card shadow-card cursor-pointer hover:shadow-lg transition-shadow">
+            <Card 
+              className="bg-gradient-card shadow-card cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => onNavigate?.('appointments')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Next Appointment</p>
                     <p className="text-2xl font-bold text-foreground">--</p>
-                    <p className="text-xs text-muted-foreground">No upcoming</p>
+                    <p className="text-xs text-muted-foreground">View schedule</p>
                   </div>
                   <Calendar className="h-8 w-8 text-primary" />
                 </div>
@@ -436,7 +467,11 @@ export const Dashboard = () => {
                   <CardTitle>Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button className="w-full" variant="default">
+                  <Button 
+                    className="w-full" 
+                    variant="default"
+                    onClick={() => onNavigate?.('glucose')}
+                  >
                     <Heart className="h-4 w-4 mr-2" />
                     Log Glucose Reading
                   </Button>
@@ -448,7 +483,11 @@ export const Dashboard = () => {
                     <Pill className="h-4 w-4 mr-2" />
                     View Medications
                   </Button>
-                  <Button className="w-full" variant="outline">
+                  <Button 
+                    className="w-full" 
+                    variant="outline"
+                    onClick={() => onNavigate?.('nutrition')}
+                  >
                     <Apple className="h-4 w-4 mr-2" />
                     Log Meal
                   </Button>

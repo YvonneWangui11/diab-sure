@@ -274,6 +274,33 @@ export type Database = {
         }
         Relationships: []
       }
+      glucose_readings: {
+        Row: {
+          created_at: string
+          glucose_value: number
+          id: string
+          notes: string | null
+          patient_id: string
+          test_time: string
+        }
+        Insert: {
+          created_at?: string
+          glucose_value: number
+          id?: string
+          notes?: string | null
+          patient_id: string
+          test_time: string
+        }
+        Update: {
+          created_at?: string
+          glucose_value?: number
+          id?: string
+          notes?: string | null
+          patient_id?: string
+          test_time?: string
+        }
+        Relationships: []
+      }
       health_alerts: {
         Row: {
           alert_type: string

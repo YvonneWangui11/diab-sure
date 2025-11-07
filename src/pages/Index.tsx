@@ -3,10 +3,12 @@ import { Navigation } from "@/components/Navigation";
 import { Dashboard } from "@/components/Dashboard";
 import { DoctorDashboard } from "@/components/DoctorDashboard";
 import { AdminDashboard } from "@/components/AdminDashboard";
-import { NutritionTracking } from "@/components/NutritionTracking";
-import { ExerciseTracking } from "@/components/ExerciseTracking";
+import { GlucoseTracking } from "@/components/GlucoseTracking";
+import { NutritionTrackingEnhanced } from "@/components/NutritionTrackingEnhanced";
+import { ExerciseTrackingEnhanced } from "@/components/ExerciseTrackingEnhanced";
 import { AppointmentViewing } from "@/components/AppointmentViewing";
 import { ProgressDashboard } from "@/components/ProgressDashboard";
+import { EducationHub } from "@/components/EducationHub";
 import { ProfilePage } from "@/components/ProfilePage";
 import { LandingPage } from "@/components/LandingPage";
 import { AuthPage } from "@/components/AuthPage";
@@ -86,22 +88,24 @@ const Index = () => {
     switch (currentPage) {
       case "dashboard":
         if (userRole === 'admin') return <AdminDashboard />;
-        return userRole === 'clinician' ? <DoctorDashboard /> : <Dashboard />;
+        return userRole === 'clinician' ? <DoctorDashboard /> : <Dashboard onNavigate={setCurrentPage} />;
+      case "glucose":
+        return userId ? <GlucoseTracking userId={userId} /> : null;
       case "nutrition":
-        return userId ? <NutritionTracking userId={userId} /> : null;
+        return userId ? <NutritionTrackingEnhanced userId={userId} /> : null;
       case "exercise":
-        return userId ? <ExerciseTracking userId={userId} /> : null;
+        return userId ? <ExerciseTrackingEnhanced userId={userId} /> : null;
       case "appointments":
         return userId ? <AppointmentViewing userId={userId} /> : null;
       case "progress":
         return userId ? <ProgressDashboard userId={userId} /> : null;
       case "education":
-        return <div className="p-8 text-center"><h2 className="text-2xl font-bold">Education Module Coming Soon</h2></div>;
+        return <EducationHub />;
       case "profile":
         return <ProfilePage onSignOut={handleSignOut} />;
       default:
         if (userRole === 'admin') return <AdminDashboard />;
-        return userRole === 'clinician' ? <DoctorDashboard /> : <Dashboard />;
+        return userRole === 'clinician' ? <DoctorDashboard /> : <Dashboard onNavigate={setCurrentPage} />;
     }
   };
 

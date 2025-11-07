@@ -1,41 +1,131 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Heart, Plus, TrendingUp, Calendar, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Activity, Plus, Heart } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-export const GlucoseTracking = () => {
+interface GlucoseReading {
+  id: string;
+  glucose_value: number;
+  test_time: string;
+  notes?: string;
+  created_at: string;
+}
+
+interface GlucoseTrackingProps {
+  userId: string;
+}
+
+export const GlucoseTracking = ({ userId }: GlucoseTrackingProps) => {
   const [glucoseValue, setGlucoseValue] = useState("");
-  const [testTime, setTestTime] = useState("");
+  const [testTime, setTestTime] = useState("fasting");
   const [notes, setNotes] = useState("");
+  const [readings, setReadings] = useState<GlucoseReading[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const glucoseReadings = [
-    { id: 1, value: 126, time: "8:00 AM", date: "Today", type: "Fasting", status: "normal" },
-    { id: 2, value: 142, time: "2:00 PM", date: "Today", type: "Post-meal", status: "high" },
-    { id: 3, value: 118, time: "8:00 AM", date: "Yesterday", type: "Fasting", status: "normal" },
-    { id: 4, value: 134, time: "7:30 PM", date: "Yesterday", type: "Post-meal", status: "normal" },
-    { id: 5, value: 115, time: "8:00 AM", date: "2 days ago", type: "Fasting", status: "normal" },
-  ];
+  const loadReadings = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('glucose_readings')
+        .select('*')
+        .eq('patient_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "normal": return "bg-success text-success-foreground";
-      case "high": return "bg-destructive text-destructive-foreground";
-      case "low": return "bg-warning text-warning-foreground";
-      default: return "bg-muted text-muted-foreground";
+      if (error) throw error;
+      setReadings(data || []);
+    } catch (error) {
+      console.error('Error loading glucose readings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load glucose readings",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "normal": return "Normal";
-      case "high": return "High";
-      case "low": return "Low";
-      default: return "Unknown";
+  const saveReading = async () => {
+    if (!glucoseValue) {
+      toast({
+        title: "Error",
+        description: "Please enter a glucose value",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('glucose_readings')
+        .insert({
+          patient_id: userId,
+          glucose_value: Number(glucoseValue),
+          test_time: testTime,
+          notes: notes || null,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Glucose reading saved successfully",
+      });
+
+      setGlucoseValue("");
+      setNotes("");
+      setTestTime("fasting");
+      loadReadings();
+    } catch (error) {
+      console.error('Error saving glucose reading:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save glucose reading",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    loadReadings();
+
+    const subscription = supabase
+      .channel('glucose-readings-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'glucose_readings',
+        filter: `patient_id=eq.${userId}`
+      }, () => {
+        loadReadings();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [userId]);
+
+  const getStatus = (value: number, testTime: string) => {
+    if (testTime === "fasting") {
+      if (value < 70) return { text: "Low", color: "bg-warning text-warning-foreground" };
+      if (value <= 100) return { text: "Normal", color: "bg-success text-success-foreground" };
+      if (value <= 125) return { text: "Pre-diabetes", color: "bg-orange-100 text-orange-800" };
+      return { text: "High", color: "bg-destructive text-destructive-foreground" };
+    } else {
+      if (value < 70) return { text: "Low", color: "bg-warning text-warning-foreground" };
+      if (value <= 140) return { text: "Normal", color: "bg-success text-success-foreground" };
+      if (value <= 199) return { text: "Pre-diabetes", color: "bg-orange-100 text-orange-800" };
+      return { text: "High", color: "bg-destructive text-destructive-foreground" };
     }
   };
 
@@ -100,7 +190,7 @@ export const GlucoseTracking = () => {
               />
             </div>
 
-            <Button className="w-full">
+            <Button className="w-full" onClick={saveReading}>
               <Heart className="h-4 w-4 mr-2" />
               Save Reading
             </Button>
@@ -111,36 +201,51 @@ export const GlucoseTracking = () => {
         <Card className="lg:col-span-2 shadow-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
+              <Activity className="h-5 w-5 text-primary" />
               Recent Readings
             </CardTitle>
             <CardDescription>Your glucose readings history</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {glucoseReadings.map((reading) => (
-                <div key={reading.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
-                  <div className="flex items-center gap-4">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-foreground">{reading.value}</p>
-                      <p className="text-xs text-muted-foreground">mg/dL</p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">{reading.type}</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
-                        <span>{reading.date}</span>
-                        <Clock className="h-3 w-3 ml-2" />
-                        <span>{reading.time}</span>
+            {loading ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : readings.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No glucose readings yet</p>
+                <p className="text-sm mt-2">Start tracking by adding your first reading above</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {readings.map((reading) => {
+                  const status = getStatus(reading.glucose_value, reading.test_time);
+                  return (
+                    <div key={reading.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
+                      <div className="flex items-center gap-4">
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-foreground">{reading.glucose_value}</p>
+                          <p className="text-xs text-muted-foreground">mg/dL</p>
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground capitalize">{reading.test_time.replace('-', ' ')}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(reading.created_at).toLocaleDateString()} at {new Date(reading.created_at).toLocaleTimeString()}
+                          </p>
+                          {reading.notes && (
+                            <p className="text-xs text-muted-foreground italic mt-1">{reading.notes}</p>
+                          )}
+                        </div>
                       </div>
+                      <Badge className={status.color}>
+                        {status.text}
+                      </Badge>
                     </div>
-                  </div>
-                  <Badge className={getStatusColor(reading.status)}>
-                    {getStatusText(reading.status)}
-                  </Badge>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
