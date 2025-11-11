@@ -8,6 +8,7 @@ import { User, Mail, Phone, Calendar, Edit, Save, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { PatientDataExport } from "./PatientDataExport";
 
 interface ProfilePageProps {
   onSignOut: () => void;
@@ -436,6 +437,8 @@ export const ProfilePage = ({ onSignOut }: ProfilePageProps) => {
               </div>
             </CardContent>
           </Card>
+
+          <PatientDataExport />
         </>
       )}
     </div>
