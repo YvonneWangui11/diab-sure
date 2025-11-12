@@ -4,7 +4,8 @@ import { UserRoleManagement } from "./UserRoleManagement";
 import { AuditLogViewer } from "./AuditLogViewer";
 import { ReportsExports } from "./ReportsExports";
 import { AnnouncementsManager } from "./AnnouncementsManager";
-import { Users, FileText, Download, Megaphone } from "lucide-react";
+import { Users, FileText, Download, Megaphone, Clock } from "lucide-react";
+import { DataRetentionManager } from "./DataRetentionManager";
 
 export const AdminDashboard = () => {
   return (
@@ -17,7 +18,7 @@ export const AdminDashboard = () => {
       </div>
 
       <Tabs defaultValue="users" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">User Management</span>
@@ -33,6 +34,10 @@ export const AdminDashboard = () => {
           <TabsTrigger value="announcements" className="flex items-center gap-2">
             <Megaphone className="h-4 w-4" />
             <span className="hidden sm:inline">Announcements</span>
+          </TabsTrigger>
+          <TabsTrigger value="retention" className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            <span className="hidden sm:inline">Data Retention</span>
           </TabsTrigger>
         </TabsList>
 
@@ -50,6 +55,10 @@ export const AdminDashboard = () => {
 
         <TabsContent value="announcements" className="space-y-4">
           <AnnouncementsManager />
+        </TabsContent>
+
+        <TabsContent value="retention" className="space-y-4">
+          <DataRetentionManager />
         </TabsContent>
       </Tabs>
     </div>

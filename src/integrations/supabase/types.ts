@@ -131,6 +131,72 @@ export type Database = {
         }
         Relationships: []
       }
+      data_retention_flags: {
+        Row: {
+          action_taken: string | null
+          created_at: string
+          data_type: string
+          flagged_at: string
+          id: string
+          notes: string | null
+          record_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          user_id: string
+        }
+        Insert: {
+          action_taken?: string | null
+          created_at?: string
+          data_type: string
+          flagged_at?: string
+          id?: string
+          notes?: string | null
+          record_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          user_id: string
+        }
+        Update: {
+          action_taken?: string | null
+          created_at?: string
+          data_type?: string
+          flagged_at?: string
+          id?: string
+          notes?: string | null
+          record_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      data_retention_policies: {
+        Row: {
+          created_at: string
+          data_type: string
+          id: string
+          is_active: boolean | null
+          retention_days: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_type: string
+          id?: string
+          is_active?: boolean | null
+          retention_days: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_type?: string
+          id?: string
+          is_active?: boolean | null
+          retention_days?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       deletion_requests: {
         Row: {
           admin_notes: string | null
