@@ -5,11 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, CheckCircle, Clock, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertCircle, CheckCircle, Clock, Trash2, BarChart3 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuditLog } from "@/hooks/useAuditLog";
+import { DataRetentionDashboard } from "./DataRetentionDashboard";
 
 interface RetentionPolicy {
   id: string;
@@ -156,13 +158,33 @@ export const DataRetentionManager = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            Data Retention Policies
-          </CardTitle>
+    <Tabs defaultValue="dashboard" className="space-y-6">
+      <TabsList className="grid w-full grid-cols-3">
+        <TabsTrigger value="dashboard">
+          <BarChart3 className="w-4 h-4 mr-2" />
+          Dashboard
+        </TabsTrigger>
+        <TabsTrigger value="policies">
+          <Clock className="w-4 h-4 mr-2" />
+          Policies
+        </TabsTrigger>
+        <TabsTrigger value="flagged">
+          <AlertCircle className="w-4 h-4 mr-2" />
+          Flagged Records ({flags.length})
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="dashboard" className="space-y-6">
+        <DataRetentionDashboard />
+      </TabsContent>
+
+      <TabsContent value="policies" className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Data Retention Policies
+            </CardTitle>
           <CardDescription>
             Configure automatic data retention periods and flag old data for deletion
           </CardDescription>
@@ -218,13 +240,15 @@ export const DataRetentionManager = () => {
           </Table>
         </CardContent>
       </Card>
+      </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5" />
-            Flagged Records ({flags.length})
-          </CardTitle>
+      <TabsContent value="flagged" className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              Flagged Records ({flags.length})
+            </CardTitle>
           <CardDescription>
             Review and approve data flagged for deletion
           </CardDescription>
@@ -277,6 +301,7 @@ export const DataRetentionManager = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 };
