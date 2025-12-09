@@ -44,10 +44,13 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [hasNewMessage, setHasNewMessage] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const initialLoadRef = useRef(true);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const [newMessage, setNewMessage] = useState({
     to_patient_id: "",
@@ -127,6 +130,81 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
       setHasNewMessage(false);
     }
   }, [selectedConversation]);
+
+  // Set up presence channel for typing indicators
+  useEffect(() => {
+    if (!currentUserId || !selectedConversation) return;
+
+    const channelName = `typing:${[currentUserId, selectedConversation].sort().join('-')}`;
+    
+    presenceChannelRef.current = supabase.channel(channelName);
+    
+    presenceChannelRef.current
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannelRef.current?.presenceState() || {};
+        const typing = new Set<string>();
+        
+        Object.values(state).forEach((presences: any) => {
+          presences.forEach((presence: any) => {
+            if (presence.isTyping && presence.userId !== currentUserId) {
+              typing.add(presence.userId);
+            }
+          });
+        });
+        
+        setTypingUsers(typing);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannelRef.current?.track({
+            userId: currentUserId,
+            isTyping: false,
+          });
+        }
+      });
+
+    return () => {
+      if (presenceChannelRef.current) {
+        supabase.removeChannel(presenceChannelRef.current);
+        presenceChannelRef.current = null;
+      }
+    };
+  }, [currentUserId, selectedConversation]);
+
+  // Handle typing indicator
+  const handleTyping = () => {
+    if (!presenceChannelRef.current || !currentUserId) return;
+
+    // Update presence to show typing
+    presenceChannelRef.current.track({
+      userId: currentUserId,
+      isTyping: true,
+    });
+
+    // Clear previous timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set timeout to stop typing indicator after 2 seconds of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      presenceChannelRef.current?.track({
+        userId: currentUserId,
+        isTyping: false,
+      });
+    }, 2000);
+  };
+
+  // Stop typing when message is sent
+  const stopTyping = () => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    presenceChannelRef.current?.track({
+      userId: currentUserId,
+      isTyping: false,
+    });
+  };
 
   useEffect(() => {
     scrollToBottom();
@@ -276,6 +354,7 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
       });
 
       setReplyContent("");
+      stopTyping();
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -527,6 +606,19 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
                   <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
+              {/* Typing indicator */}
+              {typingUsers.size > 0 && (
+                <div className="px-4 py-2 border-t bg-muted/30">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                    <span>typing...</span>
+                  </div>
+                </div>
+              )}
               {/* Reply input - shown for both clinicians and patients */}
               <div className="p-3 border-t">
                 <div className="flex gap-2">
@@ -534,7 +626,10 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
                     placeholder="Type a reply..."
                     className="min-h-[60px] resize-none"
                     value={replyContent}
-                    onChange={(e) => setReplyContent(e.target.value)}
+                    onChange={(e) => {
+                      setReplyContent(e.target.value);
+                      handleTyping();
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
