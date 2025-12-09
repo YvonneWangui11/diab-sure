@@ -186,6 +186,51 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
     }
   };
 
+  const [replyContent, setReplyContent] = useState("");
+
+  const sendReply = async () => {
+    if (!selectedConversation || !replyContent.trim()) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Determine if we're sending to a clinician or patient
+      const messageData = isClinician
+        ? {
+            from_user_id: user.id,
+            to_patient_id: selectedConversation,
+            content: replyContent,
+            status: "sent",
+            sent_at: new Date().toISOString(),
+          }
+        : {
+            from_user_id: user.id,
+            to_clinician_id: selectedConversation,
+            content: replyContent,
+            status: "sent",
+            sent_at: new Date().toISOString(),
+          };
+
+      const { error } = await supabase.from("messages").insert(messageData);
+
+      if (error) throw error;
+
+      toast({
+        title: "Message sent",
+        description: "Your reply has been sent",
+      });
+
+      setReplyContent("");
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    }
+  };
+
   const getConversations = () => {
     const conversationMap = new Map<string, { 
       partnerId: string; 
@@ -417,36 +462,32 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
                   <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
-              {isClinician && (
-                <div className="p-3 border-t">
-                  <div className="flex gap-2">
-                    <Textarea
-                      placeholder="Type a message..."
-                      className="min-h-[60px] resize-none"
-                      value={newMessage.content}
-                      onChange={(e) => setNewMessage({ ...newMessage, content: e.target.value, to_patient_id: selectedConversation })}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          if (newMessage.content.trim()) {
-                            sendMessage();
-                          }
+              {/* Reply input - shown for both clinicians and patients */}
+              <div className="p-3 border-t">
+                <div className="flex gap-2">
+                  <Textarea
+                    placeholder="Type a reply..."
+                    className="min-h-[60px] resize-none"
+                    value={replyContent}
+                    onChange={(e) => setReplyContent(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        if (replyContent.trim()) {
+                          sendReply();
                         }
-                      }}
-                    />
-                    <Button 
-                      onClick={() => {
-                        setNewMessage({ ...newMessage, to_patient_id: selectedConversation });
-                        sendMessage();
-                      }}
-                      disabled={!newMessage.content.trim()}
-                      className="self-end"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
+                      }
+                    }}
+                  />
+                  <Button 
+                    onClick={sendReply}
+                    disabled={!replyContent.trim()}
+                    className="self-end"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
                 </div>
-              )}
+              </div>
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-muted-foreground">
