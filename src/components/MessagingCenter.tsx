@@ -9,8 +9,19 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Send, Plus, User, Clock, CheckCheck, Search, Bell } from "lucide-react";
+import { MessageSquare, Send, Plus, User, Clock, CheckCheck, Search, Bell, Smile } from "lucide-react";
 import { format } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+const REACTION_EMOJIS = ["👍", "❤️", "✅", "😊", "👏", "🙏"];
+
+interface MessageReaction {
+  id: string;
+  message_id: string;
+  user_id: string;
+  emoji: string;
+  created_at: string;
+}
 
 interface Message {
   id: string;
@@ -37,6 +48,7 @@ interface MessagingCenterProps {
 
 export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [reactions, setReactions] = useState<MessageReaction[]>([]);
   const [patients, setPatients] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -246,7 +258,7 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
         setCurrentUserId(user.id);
       }
 
-      await Promise.all([loadMessages(), loadPatients()]);
+      await Promise.all([loadMessages(), loadPatients(), loadReactions()]);
     } catch (error) {
       console.error("Error initializing data:", error);
     } finally {
@@ -270,6 +282,74 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
     } catch (error: any) {
       console.error("Error loading messages:", error);
     }
+  };
+
+  const loadReactions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("message_reactions")
+        .select("*");
+
+      if (error) throw error;
+      setReactions(data || []);
+    } catch (error: any) {
+      console.error("Error loading reactions:", error);
+    }
+  };
+
+  const toggleReaction = async (messageId: string, emoji: string) => {
+    if (!currentUserId) return;
+
+    try {
+      // Check if reaction already exists
+      const existingReaction = reactions.find(
+        r => r.message_id === messageId && r.user_id === currentUserId && r.emoji === emoji
+      );
+
+      if (existingReaction) {
+        // Remove reaction
+        const { error } = await supabase
+          .from("message_reactions")
+          .delete()
+          .eq("id", existingReaction.id);
+
+        if (error) throw error;
+        setReactions(prev => prev.filter(r => r.id !== existingReaction.id));
+      } else {
+        // Add reaction
+        const { data, error } = await supabase
+          .from("message_reactions")
+          .insert({
+            message_id: messageId,
+            user_id: currentUserId,
+            emoji: emoji,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          setReactions(prev => [...prev, data]);
+        }
+      }
+    } catch (error: any) {
+      console.error("Error toggling reaction:", error);
+    }
+  };
+
+  const getMessageReactions = (messageId: string) => {
+    const messageReactions = reactions.filter(r => r.message_id === messageId);
+    const grouped = messageReactions.reduce((acc, r) => {
+      if (!acc[r.emoji]) {
+        acc[r.emoji] = { count: 0, hasOwn: false };
+      }
+      acc[r.emoji].count++;
+      if (r.user_id === currentUserId) {
+        acc[r.emoji].hasOwn = true;
+      }
+      return acc;
+    }, {} as Record<string, { count: number; hasOwn: boolean }>);
+    return grouped;
   };
 
   const loadPatients = async () => {
@@ -599,36 +679,84 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
                 <div className="space-y-4">
                   {selectedMessages.map((msg) => {
                     const isOwn = msg.from_user_id === currentUserId;
+                    const msgReactions = getMessageReactions(msg.id);
                     return (
                       <div
                         key={msg.id}
                         className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
                       >
-                        <div
-                          className={`max-w-[70%] rounded-lg p-3 ${
-                            isOwn
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted"
-                          }`}
-                        >
-                          {msg.subject && (
-                            <p className={`text-sm font-semibold mb-1 ${isOwn ? "text-primary-foreground/80" : "text-foreground"}`}>
-                              {msg.subject}
-                            </p>
-                          )}
-                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                          <div className={`flex items-center gap-1 mt-2 text-xs ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                            <Clock className="h-3 w-3" />
-                            {format(new Date(msg.created_at), "p")}
-                            {isOwn && (
-                              <span className="flex items-center ml-1" title={msg.read_at ? `Read ${format(new Date(msg.read_at), "PP p")}` : "Sent"}>
-                                <CheckCheck className={`h-3 w-3 ${msg.read_at ? "text-blue-400" : "opacity-50"}`} />
-                                {msg.read_at && (
-                                  <span className="ml-1 text-blue-400">Read</span>
-                                )}
-                              </span>
+                        <div className="group relative">
+                          <div
+                            className={`max-w-[70%] rounded-lg p-3 ${
+                              isOwn
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted"
+                            }`}
+                          >
+                            {msg.subject && (
+                              <p className={`text-sm font-semibold mb-1 ${isOwn ? "text-primary-foreground/80" : "text-foreground"}`}>
+                                {msg.subject}
+                              </p>
                             )}
+                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                            <div className={`flex items-center gap-1 mt-2 text-xs ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                              <Clock className="h-3 w-3" />
+                              {format(new Date(msg.created_at), "p")}
+                              {isOwn && (
+                                <span className="flex items-center ml-1" title={msg.read_at ? `Read ${format(new Date(msg.read_at), "PP p")}` : "Sent"}>
+                                  <CheckCheck className={`h-3 w-3 ${msg.read_at ? "text-blue-400" : "opacity-50"}`} />
+                                  {msg.read_at && (
+                                    <span className="ml-1 text-blue-400">Read</span>
+                                  )}
+                                </span>
+                              )}
+                            </div>
                           </div>
+                          
+                          {/* Reactions display */}
+                          {Object.keys(msgReactions).length > 0 && (
+                            <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
+                              {Object.entries(msgReactions).map(([emoji, data]) => (
+                                <button
+                                  key={emoji}
+                                  onClick={() => toggleReaction(msg.id, emoji)}
+                                  className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors ${
+                                    data.hasOwn 
+                                      ? "bg-primary/20 border-primary" 
+                                      : "bg-muted border-border hover:bg-accent"
+                                  }`}
+                                >
+                                  {emoji} {data.count > 1 && data.count}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {/* Reaction picker */}
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button
+                                className={`absolute ${isOwn ? "-left-8" : "-right-8"} top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-accent`}
+                              >
+                                <Smile className="h-4 w-4 text-muted-foreground" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-2" side={isOwn ? "left" : "right"}>
+                              <div className="flex gap-1">
+                                {REACTION_EMOJIS.map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => toggleReaction(msg.id, emoji)}
+                                    className={`text-lg p-1 rounded hover:bg-accent transition-colors ${
+                                      msgReactions[emoji]?.hasOwn ? "bg-primary/20" : ""
+                                    }`}
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
                     );
