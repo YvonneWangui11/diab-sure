@@ -59,6 +59,7 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
   const [reactions, setReactions] = useState<MessageReaction[]>([]);
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
   const [patients, setPatients] = useState<UserProfile[]>([]);
+  const [clinicians, setClinicians] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -268,7 +269,7 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
         setCurrentUserId(user.id);
       }
 
-      await Promise.all([loadMessages(), loadPatients(), loadReactions(), loadPinnedMessages()]);
+      await Promise.all([loadMessages(), loadPatients(), loadClinicians(), loadReactions(), loadPinnedMessages()]);
     } catch (error) {
       console.error("Error initializing data:", error);
     } finally {
@@ -464,12 +465,41 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
     }
   };
 
+  const loadClinicians = async () => {
+    if (isClinician) return;
+
+    try {
+      // Get clinicians assigned to this patient
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: mappings } = await supabase
+        .from("doctor_patients")
+        .select("doctor_id")
+        .eq("patient_id", user.id)
+        .eq("status", "active");
+
+      if (mappings && mappings.length > 0) {
+        const doctorIds = mappings.map(m => m.doctor_id);
+        
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, full_name, email")
+          .in("user_id", doctorIds);
+
+        setClinicians(profiles || []);
+      }
+    } catch (error) {
+      console.error("Error loading clinicians:", error);
+    }
+  };
+
   const sendMessage = async () => {
     if (!newMessage.to_patient_id || !newMessage.content.trim()) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Please select a patient and enter a message",
+        description: isClinician ? "Please select a patient and enter a message" : "Please select a doctor and enter a message",
       });
       return;
     }
@@ -478,14 +508,25 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase.from("messages").insert({
-        from_user_id: user.id,
-        to_patient_id: newMessage.to_patient_id,
-        subject: newMessage.subject || null,
-        content: newMessage.content,
-        status: "sent",
-        sent_at: new Date().toISOString(),
-      });
+      const messageData = isClinician
+        ? {
+            from_user_id: user.id,
+            to_patient_id: newMessage.to_patient_id,
+            subject: newMessage.subject || null,
+            content: newMessage.content,
+            status: "sent",
+            sent_at: new Date().toISOString(),
+          }
+        : {
+            from_user_id: user.id,
+            to_clinician_id: newMessage.to_patient_id,
+            subject: newMessage.subject || null,
+            content: newMessage.content,
+            status: "sent",
+            sent_at: new Date().toISOString(),
+          };
+
+      const { error } = await supabase.from("messages").insert(messageData);
 
       if (error) throw error;
 
@@ -571,10 +612,13 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
       const isUnread = !msg.read_at && msg.from_user_id !== currentUserId;
 
       if (!existing || new Date(msg.created_at) > new Date(existing.lastMessage.created_at)) {
+        // Look in both patients and clinicians lists
         const patient = patients.find(p => p.user_id === partnerId);
+        const clinician = clinicians.find(c => c.user_id === partnerId);
+        const partner = patient || clinician;
         conversationMap.set(partnerId, {
           partnerId,
-          partnerName: patient?.full_name || "Unknown User",
+          partnerName: partner?.full_name || "Unknown User",
           lastMessage: msg,
           unreadCount: (existing?.unreadCount || 0) + (isUnread ? 1 : 0),
         });
@@ -629,73 +673,79 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
               )}
             </CardTitle>
             <CardDescription>
-              {isClinician ? "Send and receive messages with your patients" : "View messages from your healthcare team"}
+              {isClinician ? "Send and receive messages with your patients" : "Send and receive messages with your healthcare team"}
             </CardDescription>
           </div>
-          {isClinician && (
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Message
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Send New Message</DialogTitle>
-                  <DialogDescription>
-                    Send a message to one of your patients
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">To Patient</label>
-                    <Select
-                      value={newMessage.to_patient_id}
-                      onValueChange={(value) => setNewMessage({ ...newMessage, to_patient_id: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a patient" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {patients.map((patient) => (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                New Message
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Send New Message</DialogTitle>
+                <DialogDescription>
+                  {isClinician ? "Send a message to one of your patients" : "Send a message to your healthcare provider"}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{isClinician ? "To Patient" : "To Doctor"}</label>
+                  <Select
+                    value={newMessage.to_patient_id}
+                    onValueChange={(value) => setNewMessage({ ...newMessage, to_patient_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={isClinician ? "Select a patient" : "Select a doctor"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isClinician ? (
+                        patients.map((patient) => (
                           <SelectItem key={patient.user_id} value={patient.user_id}>
                             {patient.full_name}
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Subject (Optional)</label>
-                    <Input
-                      value={newMessage.subject}
-                      onChange={(e) => setNewMessage({ ...newMessage, subject: e.target.value })}
-                      placeholder="Message subject"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Message</label>
-                    <Textarea
-                      value={newMessage.content}
-                      onChange={(e) => setNewMessage({ ...newMessage, content: e.target.value })}
-                      placeholder="Type your message..."
-                      rows={4}
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={sendMessage} disabled={!newMessage.content.trim() || !newMessage.to_patient_id}>
-                      <Send className="h-4 w-4 mr-2" />
-                      Send
-                    </Button>
-                  </div>
+                        ))
+                      ) : (
+                        clinicians.map((clinician) => (
+                          <SelectItem key={clinician.user_id} value={clinician.user_id}>
+                            {clinician.full_name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </DialogContent>
-            </Dialog>
-          )}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Subject (Optional)</label>
+                  <Input
+                    value={newMessage.subject}
+                    onChange={(e) => setNewMessage({ ...newMessage, subject: e.target.value })}
+                    placeholder="Message subject"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Message</label>
+                  <Textarea
+                    value={newMessage.content}
+                    onChange={(e) => setNewMessage({ ...newMessage, content: e.target.value })}
+                    placeholder="Type your message..."
+                    rows={4}
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={sendMessage} disabled={!newMessage.content.trim() || !newMessage.to_patient_id}>
+                    <Send className="h-4 w-4 mr-2" />
+                    Send
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </CardHeader>
       <CardContent className="flex-1 p-0 flex overflow-hidden">
@@ -775,9 +825,10 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
                 ) : (
                   getPinnedMessagesList().map((msg) => {
                     const isOwn = msg.from_user_id === currentUserId;
-                    const partner = patients.find(p => 
-                      p.user_id === (isOwn ? (msg.to_patient_id || msg.to_clinician_id) : msg.from_user_id)
-                    );
+                    const partnerId = isOwn ? (msg.to_patient_id || msg.to_clinician_id) : msg.from_user_id;
+                    const patient = patients.find(p => p.user_id === partnerId);
+                    const clinician = clinicians.find(c => c.user_id === partnerId);
+                    const partner = patient || clinician;
                     return (
                       <div
                         key={msg.id}
