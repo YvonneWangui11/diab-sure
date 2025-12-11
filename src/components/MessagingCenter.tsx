@@ -9,9 +9,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Send, Plus, User, Clock, CheckCheck, Search, Bell, Smile } from "lucide-react";
+import { MessageSquare, Send, Plus, User, Clock, CheckCheck, Search, Bell, Smile, Pin, PinOff } from "lucide-react";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const REACTION_EMOJIS = ["👍", "❤️", "✅", "😊", "👏", "🙏"];
 
@@ -21,6 +22,13 @@ interface MessageReaction {
   user_id: string;
   emoji: string;
   created_at: string;
+}
+
+interface PinnedMessage {
+  id: string;
+  message_id: string;
+  user_id: string;
+  pinned_at: string;
 }
 
 interface Message {
@@ -49,6 +57,7 @@ interface MessagingCenterProps {
 export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<MessageReaction[]>([]);
+  const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
   const [patients, setPatients] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -57,6 +66,7 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState("conversations");
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -258,7 +268,7 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
         setCurrentUserId(user.id);
       }
 
-      await Promise.all([loadMessages(), loadPatients(), loadReactions()]);
+      await Promise.all([loadMessages(), loadPatients(), loadReactions(), loadPinnedMessages()]);
     } catch (error) {
       console.error("Error initializing data:", error);
     } finally {
@@ -350,6 +360,79 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
       return acc;
     }, {} as Record<string, { count: number; hasOwn: boolean }>);
     return grouped;
+  };
+
+  const loadPinnedMessages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("pinned_messages")
+        .select("*");
+
+      if (error) throw error;
+      setPinnedMessages(data || []);
+    } catch (error: any) {
+      console.error("Error loading pinned messages:", error);
+    }
+  };
+
+  const togglePin = async (messageId: string) => {
+    if (!currentUserId) return;
+
+    try {
+      const existingPin = pinnedMessages.find(
+        p => p.message_id === messageId && p.user_id === currentUserId
+      );
+
+      if (existingPin) {
+        // Unpin
+        const { error } = await supabase
+          .from("pinned_messages")
+          .delete()
+          .eq("id", existingPin.id);
+
+        if (error) throw error;
+        setPinnedMessages(prev => prev.filter(p => p.id !== existingPin.id));
+        toast({
+          title: "Message unpinned",
+          description: "Message removed from pinned",
+        });
+      } else {
+        // Pin
+        const { data, error } = await supabase
+          .from("pinned_messages")
+          .insert({
+            message_id: messageId,
+            user_id: currentUserId,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          setPinnedMessages(prev => [...prev, data]);
+          toast({
+            title: "Message pinned",
+            description: "Message saved to pinned for quick access",
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error("Error toggling pin:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update pin status",
+      });
+    }
+  };
+
+  const isMessagePinned = (messageId: string) => {
+    return pinnedMessages.some(p => p.message_id === messageId && p.user_id === currentUserId);
+  };
+
+  const getPinnedMessagesList = () => {
+    const pinnedIds = pinnedMessages.map(p => p.message_id);
+    return messages.filter(m => pinnedIds.includes(m.id));
   };
 
   const loadPatients = async () => {
@@ -618,57 +701,119 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
       <CardContent className="flex-1 p-0 flex overflow-hidden">
         {/* Conversations List */}
         <div className="w-1/3 border-r flex flex-col">
-          <div className="p-3 border-b">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search conversations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-          <ScrollArea className="flex-1">
-            {conversations.length === 0 ? (
-              <div className="p-4 text-center text-muted-foreground">
-                No conversations yet
-              </div>
-            ) : (
-              conversations.map((conv) => (
-                <div
-                  key={conv.partnerId}
-                  onClick={() => setSelectedConversation(conv.partnerId)}
-                  className={`p-3 border-b cursor-pointer hover:bg-accent/50 transition-colors ${
-                    selectedConversation === conv.partnerId ? "bg-accent" : ""
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium truncate">{conv.partnerName}</span>
-                        {conv.unreadCount > 0 && (
-                          <Badge variant="default" className="ml-2">
-                            {conv.unreadCount}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {conv.lastMessage.content}
-                      </p>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                        <Clock className="h-3 w-3" />
-                        {format(new Date(conv.lastMessage.created_at), "PP")}
-                      </span>
-                    </div>
-                  </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+            <TabsList className="w-full rounded-none border-b justify-start">
+              <TabsTrigger value="conversations" className="flex-1">Messages</TabsTrigger>
+              <TabsTrigger value="pinned" className="flex-1">
+                <Pin className="h-3 w-3 mr-1" />
+                Pinned ({pinnedMessages.length})
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="conversations" className="flex-1 flex flex-col m-0 data-[state=inactive]:hidden">
+              <div className="p-3 border-b">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search conversations..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
-              ))
-            )}
-          </ScrollArea>
+              </div>
+              <ScrollArea className="flex-1">
+                {conversations.length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground">
+                    No conversations yet
+                  </div>
+                ) : (
+                  conversations.map((conv) => (
+                    <div
+                      key={conv.partnerId}
+                      onClick={() => setSelectedConversation(conv.partnerId)}
+                      className={`p-3 border-b cursor-pointer hover:bg-accent/50 transition-colors ${
+                        selectedConversation === conv.partnerId ? "bg-accent" : ""
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium truncate">{conv.partnerName}</span>
+                            {conv.unreadCount > 0 && (
+                              <Badge variant="default" className="ml-2">
+                                {conv.unreadCount}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {conv.lastMessage.content}
+                          </p>
+                          <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                            <Clock className="h-3 w-3" />
+                            {format(new Date(conv.lastMessage.created_at), "PP")}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="pinned" className="flex-1 flex flex-col m-0 data-[state=inactive]:hidden">
+              <ScrollArea className="flex-1">
+                {getPinnedMessagesList().length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground">
+                    <Pin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No pinned messages</p>
+                    <p className="text-xs mt-1">Pin important messages for quick access</p>
+                  </div>
+                ) : (
+                  getPinnedMessagesList().map((msg) => {
+                    const isOwn = msg.from_user_id === currentUserId;
+                    const partner = patients.find(p => 
+                      p.user_id === (isOwn ? (msg.to_patient_id || msg.to_clinician_id) : msg.from_user_id)
+                    );
+                    return (
+                      <div
+                        key={msg.id}
+                        className="p-3 border-b hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex items-start gap-2">
+                          <Pin className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">
+                                {isOwn ? "You" : partner?.full_name || "Unknown"}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => togglePin(msg.id)}
+                              >
+                                <PinOff className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {msg.content}
+                            </p>
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(msg.created_at), "PP p")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* Message Thread */}
@@ -732,31 +877,41 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
                             </div>
                           )}
                           
-                          {/* Reaction picker */}
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <button
-                                className={`absolute ${isOwn ? "-left-8" : "-right-8"} top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-accent`}
-                              >
-                                <Smile className="h-4 w-4 text-muted-foreground" />
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-2" side={isOwn ? "left" : "right"}>
-                              <div className="flex gap-1">
-                                {REACTION_EMOJIS.map((emoji) => (
-                                  <button
-                                    key={emoji}
-                                    onClick={() => toggleReaction(msg.id, emoji)}
-                                    className={`text-lg p-1 rounded hover:bg-accent transition-colors ${
-                                      msgReactions[emoji]?.hasOwn ? "bg-primary/20" : ""
-                                    }`}
-                                  >
-                                    {emoji}
-                                  </button>
-                                ))}
-                              </div>
-                            </PopoverContent>
-                          </Popover>
+                          {/* Action buttons */}
+                          <div className={`absolute ${isOwn ? "-left-16" : "-right-16"} top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1`}>
+                            {/* Pin button */}
+                            <button
+                              onClick={() => togglePin(msg.id)}
+                              className={`p-1 rounded-full hover:bg-accent ${isMessagePinned(msg.id) ? "text-primary" : "text-muted-foreground"}`}
+                              title={isMessagePinned(msg.id) ? "Unpin message" : "Pin message"}
+                            >
+                              {isMessagePinned(msg.id) ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                            </button>
+                            
+                            {/* Reaction picker */}
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button className="p-1 rounded-full hover:bg-accent">
+                                  <Smile className="h-4 w-4 text-muted-foreground" />
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-2" side={isOwn ? "left" : "right"}>
+                                <div className="flex gap-1">
+                                  {REACTION_EMOJIS.map((emoji) => (
+                                    <button
+                                      key={emoji}
+                                      onClick={() => toggleReaction(msg.id, emoji)}
+                                      className={`text-lg p-1 rounded hover:bg-accent transition-colors ${
+                                        msgReactions[emoji]?.hasOwn ? "bg-primary/20" : ""
+                                      }`}
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
                         </div>
                       </div>
                     );

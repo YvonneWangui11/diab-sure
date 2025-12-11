@@ -818,6 +818,35 @@ export type Database = {
           },
         ]
       }
+      pinned_messages: {
+        Row: {
+          id: string
+          message_id: string
+          pinned_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          message_id: string
+          pinned_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          message_id?: string
+          pinned_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pinned_messages_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prescriptions: {
         Row: {
           clinician_id: string | null
