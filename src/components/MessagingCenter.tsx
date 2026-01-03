@@ -9,10 +9,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Send, Plus, User, Clock, CheckCheck, Search, Bell, Smile, Pin, PinOff } from "lucide-react";
+import { MessageSquare, Send, Plus, User, Clock, CheckCheck, Search, Bell, Smile, Pin, PinOff, Reply, ChevronDown, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const REACTION_EMOJIS = ["👍", "❤️", "✅", "😊", "👏", "🙏"];
 
@@ -42,6 +43,8 @@ interface Message {
   sent_at: string | null;
   read_at: string | null;
   created_at: string;
+  parent_message_id: string | null;
+  thread_id: string | null;
 }
 
 interface UserProfile {
@@ -68,6 +71,8 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("conversations");
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -556,6 +561,12 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Calculate thread_id: use existing thread_id or the parent message's id
+      let threadId = null;
+      if (replyingTo) {
+        threadId = replyingTo.thread_id || replyingTo.id;
+      }
+
       // Determine if we're sending to a clinician or patient
       const messageData = isClinician
         ? {
@@ -564,6 +575,8 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
             content: replyContent,
             status: "sent",
             sent_at: new Date().toISOString(),
+            parent_message_id: replyingTo?.id || null,
+            thread_id: threadId,
           }
         : {
             from_user_id: user.id,
@@ -571,6 +584,8 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
             content: replyContent,
             status: "sent",
             sent_at: new Date().toISOString(),
+            parent_message_id: replyingTo?.id || null,
+            thread_id: threadId,
           };
 
       const { error } = await supabase.from("messages").insert(messageData);
@@ -579,10 +594,11 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
 
       toast({
         title: "Message sent",
-        description: "Your reply has been sent",
+        description: replyingTo ? "Your reply has been sent" : "Your message has been sent",
       });
 
       setReplyContent("");
+      setReplyingTo(null);
       stopTyping();
     } catch (error: any) {
       toast({
@@ -591,6 +607,34 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
         description: error.message,
       });
     }
+  };
+
+  const toggleThreadExpanded = (threadId: string) => {
+    setExpandedThreads(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(threadId)) {
+        newSet.delete(threadId);
+      } else {
+        newSet.add(threadId);
+      }
+      return newSet;
+    });
+  };
+
+  // Get root messages (messages without parent_message_id or that are thread starters)
+  const getRootMessages = (msgs: Message[]) => {
+    return msgs.filter(msg => !msg.parent_message_id);
+  };
+
+  // Get replies for a specific message
+  const getReplies = (parentId: string) => {
+    return messages.filter(msg => msg.parent_message_id === parentId || msg.thread_id === parentId)
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  };
+
+  // Get thread count for a message
+  const getThreadCount = (messageId: string) => {
+    return messages.filter(msg => msg.thread_id === messageId || msg.parent_message_id === messageId).length;
   };
 
   const getConversations = () => {
@@ -873,97 +917,206 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
             <>
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4">
-                  {selectedMessages.map((msg) => {
+                  {getRootMessages(selectedMessages).map((msg) => {
                     const isOwn = msg.from_user_id === currentUserId;
                     const msgReactions = getMessageReactions(msg.id);
+                    const threadCount = getThreadCount(msg.id);
+                    const isExpanded = expandedThreads.has(msg.id);
+                    const replies = getReplies(msg.id);
+
                     return (
-                      <div
-                        key={msg.id}
-                        className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
-                      >
-                        <div className="group relative">
-                          <div
-                            className={`max-w-[70%] rounded-lg p-3 ${
-                              isOwn
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted"
-                            }`}
-                          >
-                            {msg.subject && (
-                              <p className={`text-sm font-semibold mb-1 ${isOwn ? "text-primary-foreground/80" : "text-foreground"}`}>
-                                {msg.subject}
-                              </p>
-                            )}
-                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                            <div className={`flex items-center gap-1 mt-2 text-xs ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                              <Clock className="h-3 w-3" />
-                              {format(new Date(msg.created_at), "p")}
-                              {isOwn && (
-                                <span className="flex items-center ml-1" title={msg.read_at ? `Read ${format(new Date(msg.read_at), "PP p")}` : "Sent"}>
-                                  <CheckCheck className={`h-3 w-3 ${msg.read_at ? "text-blue-400" : "opacity-50"}`} />
-                                  {msg.read_at && (
-                                    <span className="ml-1 text-blue-400">Read</span>
-                                  )}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {/* Reactions display */}
-                          {Object.keys(msgReactions).length > 0 && (
-                            <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
-                              {Object.entries(msgReactions).map(([emoji, data]) => (
-                                <button
-                                  key={emoji}
-                                  onClick={() => toggleReaction(msg.id, emoji)}
-                                  className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors ${
-                                    data.hasOwn 
-                                      ? "bg-primary/20 border-primary" 
-                                      : "bg-muted border-border hover:bg-accent"
-                                  }`}
-                                >
-                                  {emoji} {data.count > 1 && data.count}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                          
-                          {/* Action buttons */}
-                          <div className={`absolute ${isOwn ? "-left-16" : "-right-16"} top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1`}>
-                            {/* Pin button */}
-                            <button
-                              onClick={() => togglePin(msg.id)}
-                              className={`p-1 rounded-full hover:bg-accent ${isMessagePinned(msg.id) ? "text-primary" : "text-muted-foreground"}`}
-                              title={isMessagePinned(msg.id) ? "Unpin message" : "Pin message"}
+                      <div key={msg.id} className="space-y-2">
+                        {/* Main message */}
+                        <div className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
+                          <div className="group relative">
+                            <div
+                              className={`max-w-[70%] rounded-lg p-3 ${
+                                isOwn
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted"
+                              }`}
                             >
-                              {isMessagePinned(msg.id) ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-                            </button>
+                              {msg.subject && (
+                                <p className={`text-sm font-semibold mb-1 ${isOwn ? "text-primary-foreground/80" : "text-foreground"}`}>
+                                  {msg.subject}
+                                </p>
+                              )}
+                              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                              <div className={`flex items-center gap-1 mt-2 text-xs ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                                <Clock className="h-3 w-3" />
+                                {format(new Date(msg.created_at), "p")}
+                                {isOwn && (
+                                  <span className="flex items-center ml-1" title={msg.read_at ? `Read ${format(new Date(msg.read_at), "PP p")}` : "Sent"}>
+                                    <CheckCheck className={`h-3 w-3 ${msg.read_at ? "text-blue-400" : "opacity-50"}`} />
+                                    {msg.read_at && (
+                                      <span className="ml-1 text-blue-400">Read</span>
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                             
-                            {/* Reaction picker */}
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <button className="p-1 rounded-full hover:bg-accent">
-                                  <Smile className="h-4 w-4 text-muted-foreground" />
-                                </button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-2" side={isOwn ? "left" : "right"}>
-                                <div className="flex gap-1">
-                                  {REACTION_EMOJIS.map((emoji) => (
-                                    <button
-                                      key={emoji}
-                                      onClick={() => toggleReaction(msg.id, emoji)}
-                                      className={`text-lg p-1 rounded hover:bg-accent transition-colors ${
-                                        msgReactions[emoji]?.hasOwn ? "bg-primary/20" : ""
-                                      }`}
-                                    >
-                                      {emoji}
-                                    </button>
-                                  ))}
-                                </div>
-                              </PopoverContent>
-                            </Popover>
+                            {/* Reactions display */}
+                            {Object.keys(msgReactions).length > 0 && (
+                              <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
+                                {Object.entries(msgReactions).map(([emoji, data]) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => toggleReaction(msg.id, emoji)}
+                                    className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors ${
+                                      data.hasOwn 
+                                        ? "bg-primary/20 border-primary" 
+                                        : "bg-muted border-border hover:bg-accent"
+                                    }`}
+                                  >
+                                    {emoji} {data.count > 1 && data.count}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            
+                            {/* Action buttons */}
+                            <div className={`absolute ${isOwn ? "-left-20" : "-right-20"} top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1`}>
+                              {/* Reply button */}
+                              <button
+                                onClick={() => setReplyingTo(msg)}
+                                className="p-1 rounded-full hover:bg-accent text-muted-foreground"
+                                title="Reply to this message"
+                              >
+                                <Reply className="h-4 w-4" />
+                              </button>
+                              
+                              {/* Pin button */}
+                              <button
+                                onClick={() => togglePin(msg.id)}
+                                className={`p-1 rounded-full hover:bg-accent ${isMessagePinned(msg.id) ? "text-primary" : "text-muted-foreground"}`}
+                                title={isMessagePinned(msg.id) ? "Unpin message" : "Pin message"}
+                              >
+                                {isMessagePinned(msg.id) ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                              </button>
+                              
+                              {/* Reaction picker */}
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button className="p-1 rounded-full hover:bg-accent">
+                                    <Smile className="h-4 w-4 text-muted-foreground" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-2" side={isOwn ? "left" : "right"}>
+                                  <div className="flex gap-1">
+                                    {REACTION_EMOJIS.map((emoji) => (
+                                      <button
+                                        key={emoji}
+                                        onClick={() => toggleReaction(msg.id, emoji)}
+                                        className={`text-lg p-1 rounded hover:bg-accent transition-colors ${
+                                          msgReactions[emoji]?.hasOwn ? "bg-primary/20" : ""
+                                        }`}
+                                      >
+                                        {emoji}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
                           </div>
                         </div>
+
+                        {/* Thread replies */}
+                        {threadCount > 0 && (
+                          <Collapsible open={isExpanded} onOpenChange={() => toggleThreadExpanded(msg.id)}>
+                            <CollapsibleTrigger asChild>
+                              <button className={`flex items-center gap-2 text-xs text-primary hover:underline ${isOwn ? "ml-auto mr-4" : "ml-4"}`}>
+                                {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                <MessageSquare className="h-3 w-3" />
+                                {threadCount} {threadCount === 1 ? "reply" : "replies"}
+                              </button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <div className={`space-y-2 mt-2 ${isOwn ? "pr-6" : "pl-6"} border-l-2 border-primary/30 ml-4`}>
+                                {replies.map((reply) => {
+                                  const isReplyOwn = reply.from_user_id === currentUserId;
+                                  const replyReactions = getMessageReactions(reply.id);
+                                  
+                                  return (
+                                    <div key={reply.id} className={`flex ${isReplyOwn ? "justify-end" : "justify-start"}`}>
+                                      <div className="group relative">
+                                        <div
+                                          className={`max-w-[60%] rounded-lg p-2 text-sm ${
+                                            isReplyOwn
+                                              ? "bg-primary/80 text-primary-foreground"
+                                              : "bg-muted/80"
+                                          }`}
+                                        >
+                                          <p className="whitespace-pre-wrap">{reply.content}</p>
+                                          <div className={`flex items-center gap-1 mt-1 text-xs ${isReplyOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                                            <Clock className="h-2.5 w-2.5" />
+                                            {format(new Date(reply.created_at), "p")}
+                                            {isReplyOwn && reply.read_at && (
+                                              <CheckCheck className="h-2.5 w-2.5 text-blue-400" />
+                                            )}
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Reply reactions */}
+                                        {Object.keys(replyReactions).length > 0 && (
+                                          <div className={`flex flex-wrap gap-1 mt-1 ${isReplyOwn ? "justify-end" : "justify-start"}`}>
+                                            {Object.entries(replyReactions).map(([emoji, data]) => (
+                                              <button
+                                                key={emoji}
+                                                onClick={() => toggleReaction(reply.id, emoji)}
+                                                className={`text-xs px-1 py-0.5 rounded-full border transition-colors ${
+                                                  data.hasOwn 
+                                                    ? "bg-primary/20 border-primary" 
+                                                    : "bg-muted border-border hover:bg-accent"
+                                                }`}
+                                              >
+                                                {emoji} {data.count > 1 && data.count}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
+                                        
+                                        {/* Reply action buttons */}
+                                        <div className={`absolute ${isReplyOwn ? "-left-16" : "-right-16"} top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1`}>
+                                          <button
+                                            onClick={() => setReplyingTo(msg)}
+                                            className="p-1 rounded-full hover:bg-accent text-muted-foreground"
+                                            title="Reply"
+                                          >
+                                            <Reply className="h-3 w-3" />
+                                          </button>
+                                          <Popover>
+                                            <PopoverTrigger asChild>
+                                              <button className="p-1 rounded-full hover:bg-accent">
+                                                <Smile className="h-3 w-3 text-muted-foreground" />
+                                              </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-2" side={isReplyOwn ? "left" : "right"}>
+                                              <div className="flex gap-1">
+                                                {REACTION_EMOJIS.map((emoji) => (
+                                                  <button
+                                                    key={emoji}
+                                                    onClick={() => toggleReaction(reply.id, emoji)}
+                                                    className={`text-lg p-1 rounded hover:bg-accent transition-colors ${
+                                                      replyReactions[emoji]?.hasOwn ? "bg-primary/20" : ""
+                                                    }`}
+                                                  >
+                                                    {emoji}
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            </PopoverContent>
+                                          </Popover>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        )}
                       </div>
                     );
                   })}
@@ -983,11 +1136,31 @@ export const MessagingCenter = ({ userRole }: MessagingCenterProps) => {
                   </div>
                 </div>
               )}
+              
+              {/* Replying to indicator */}
+              {replyingTo && (
+                <div className="px-3 py-2 border-t bg-primary/5 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Reply className="h-4 w-4 text-primary" />
+                    <span className="text-muted-foreground">Replying to:</span>
+                    <span className="text-foreground truncate max-w-[200px]">{replyingTo.content}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => setReplyingTo(null)}
+                  >
+                    ×
+                  </Button>
+                </div>
+              )}
+              
               {/* Reply input - shown for both clinicians and patients */}
               <div className="p-3 border-t">
                 <div className="flex gap-2">
                   <Textarea
-                    placeholder="Type a reply..."
+                    placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
                     className="min-h-[60px] resize-none"
                     value={replyContent}
                     onChange={(e) => {

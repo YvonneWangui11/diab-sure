@@ -686,11 +686,13 @@ export type Database = {
           delivered_at: string | null
           from_user_id: string | null
           id: string
+          parent_message_id: string | null
           read_at: string | null
           sent_at: string | null
           status: string | null
           subject: string | null
           template_id: string | null
+          thread_id: string | null
           to_clinician_id: string | null
           to_patient_id: string | null
         }
@@ -701,11 +703,13 @@ export type Database = {
           delivered_at?: string | null
           from_user_id?: string | null
           id?: string
+          parent_message_id?: string | null
           read_at?: string | null
           sent_at?: string | null
           status?: string | null
           subject?: string | null
           template_id?: string | null
+          thread_id?: string | null
           to_clinician_id?: string | null
           to_patient_id?: string | null
         }
@@ -716,15 +720,25 @@ export type Database = {
           delivered_at?: string | null
           from_user_id?: string | null
           id?: string
+          parent_message_id?: string | null
           read_at?: string | null
           sent_at?: string | null
           status?: string | null
           subject?: string | null
           template_id?: string | null
+          thread_id?: string | null
           to_clinician_id?: string | null
           to_patient_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_parent_message_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notification_preferences: {
         Row: {
