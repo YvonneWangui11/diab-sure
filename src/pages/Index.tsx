@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Dashboard } from "@/components/Dashboard";
 import { DoctorDashboard } from "@/components/DoctorDashboard";
@@ -13,7 +13,9 @@ import { ProfilePage } from "@/components/ProfilePage";
 import { LandingPage } from "@/components/LandingPage";
 import { AuthPage } from "@/components/AuthPage";
 import { FloatingYvonneButton } from "@/components/FloatingYvonneButton";
+import { PageLoader } from "@/components/LoadingSpinner";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -21,43 +23,21 @@ const Index = () => {
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [showAuth, setShowAuth] = useState(false);
   const [userId, setUserId] = useState<string>("");
+  const [isInitializing, setIsInitializing] = useState(true);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setIsLoggedIn(true);
-        setUserId(session.user.id);
-        loadUserRole(session.user.id);
-      }
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          setIsLoggedIn(true);
-          setUserId(session.user.id);
-          await loadUserRole(session.user.id);
-        } else if (event === 'SIGNED_OUT') {
-          setIsLoggedIn(false);
-          setUserRole("");
-          setUserId("");
-          setCurrentPage("dashboard");
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const loadUserRole = async (userId: string) => {
+  const loadUserRole = useCallback(async (uid: string) => {
     try {
-      const { data: roleData } = await supabase
+      const { data: roleData, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
+        .eq('user_id', uid)
         .maybeSingle();
+      
+      if (error) {
+        console.error('Error loading user role:', error);
+        return;
+      }
       
       if (roleData) {
         setUserRole(roleData.role);
@@ -65,7 +45,63 @@ const Index = () => {
     } catch (error) {
       console.error('Error loading user role:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session error:', error);
+          if (mounted) setIsInitializing(false);
+          return;
+        }
+
+        if (session && mounted) {
+          setIsLoggedIn(true);
+          setUserId(session.user.id);
+          await loadUserRole(session.user.id);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+      } finally {
+        if (mounted) setIsInitializing(false);
+      }
+    };
+
+    initializeAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+
+        if (event === 'SIGNED_IN' && session) {
+          setIsLoggedIn(true);
+          setUserId(session.user.id);
+          await loadUserRole(session.user.id);
+          setShowAuth(false);
+        } else if (event === 'SIGNED_OUT') {
+          setIsLoggedIn(false);
+          setUserRole("");
+          setUserId("");
+          setCurrentPage("dashboard");
+          setShowAuth(false);
+        } else if (event === 'TOKEN_REFRESHED') {
+          // Token was refreshed, session is still valid
+          console.log('Token refreshed');
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [loadUserRole]);
 
   const handleGetStarted = () => {
     setShowAuth(true);
@@ -76,12 +112,28 @@ const Index = () => {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setIsLoggedIn(false);
-    setUserRole("");
-    setUserId("");
-    setShowAuth(false);
-    setCurrentPage("dashboard");
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      setIsLoggedIn(false);
+      setUserRole("");
+      setUserId("");
+      setShowAuth(false);
+      setCurrentPage("dashboard");
+      
+      toast({
+        title: "Signed out",
+        description: "You have been successfully signed out.",
+      });
+    } catch (error) {
+      console.error('Sign out error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const renderCurrentPage = () => {
@@ -108,6 +160,11 @@ const Index = () => {
         return userRole === 'clinician' ? <DoctorDashboard /> : <Dashboard onNavigate={setCurrentPage} />;
     }
   };
+
+  // Show loading state during initialization
+  if (isInitializing) {
+    return <PageLoader text="Loading DiabeSure..." />;
+  }
 
   if (!isLoggedIn && !showAuth) {
     return <LandingPage onGetStarted={handleGetStarted} />;

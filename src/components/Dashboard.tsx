@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { MedicationManager } from "./MedicationManager";
 import { MessagingCenter } from "./MessagingCenter";
+import { AnnouncementBanner } from "./AnnouncementBanner";
 
 interface UserProfile {
   id: string;
@@ -287,6 +288,9 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Announcements */}
+      <AnnouncementBanner userRole={userRole} />
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>

@@ -10,6 +10,7 @@ import { Plus, Pill, Calendar, Clock, CheckCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PatientSelector } from "./PatientSelector";
 
 interface Medication {
   id: string;
@@ -271,15 +272,13 @@ export const MedicationManager = ({ userRole, userId }: MedicationManagerProps) 
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="patient_id">Patient ID</Label>
-                  <Input
-                    id="patient_id"
-                    value={newMedication.patient_id}
-                    onChange={(e) => setNewMedication(prev => ({ ...prev, patient_id: e.target.value }))}
-                    placeholder="Enter patient user ID"
-                  />
-                </div>
+                <PatientSelector
+                  doctorId={userId}
+                  value={newMedication.patient_id}
+                  onValueChange={(value) => setNewMedication(prev => ({ ...prev, patient_id: value }))}
+                  label="Patient *"
+                  required
+                />
                 <div className="grid gap-2">
                   <Label htmlFor="medication_name">Medication Name</Label>
                   <Input

@@ -1026,6 +1026,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      log_audit_event: {
+        Args: {
+          p_action: string
+          p_metadata?: Json
+          p_target_entity: string
+          p_target_id?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "patient" | "clinician" | "admin"
