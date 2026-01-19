@@ -6,10 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, Clock, Plus, User } from "lucide-react";
+import { PatientSelector } from "./PatientSelector";
 
 interface Appointment {
   id: string;
@@ -207,15 +207,13 @@ export const AppointmentScheduling = ({ doctorId }: AppointmentSchedulingProps) 
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="patient_id">Patient ID</Label>
-                <Input
-                  id="patient_id"
-                  value={newAppointment.patient_id}
-                  onChange={(e) => setNewAppointment(prev => ({ ...prev, patient_id: e.target.value }))}
-                  placeholder="Enter patient user ID"
-                />
-              </div>
+              <PatientSelector
+                doctorId={doctorId}
+                value={newAppointment.patient_id}
+                onValueChange={(value) => setNewAppointment(prev => ({ ...prev, patient_id: value }))}
+                label="Patient *"
+                required
+              />
               <div className="grid gap-2">
                 <Label htmlFor="start_time">Start Time</Label>
                 <Input
