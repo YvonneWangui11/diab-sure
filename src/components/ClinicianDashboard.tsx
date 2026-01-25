@@ -42,9 +42,10 @@ interface TodayAppointment {
 
 interface ClinicianDashboardProps {
   onSignOut?: () => void;
+  roleSwitcher?: React.ReactNode;
 }
 
-export const ClinicianDashboard = ({ onSignOut }: ClinicianDashboardProps) => {
+export const ClinicianDashboard = ({ onSignOut, roleSwitcher }: ClinicianDashboardProps) => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [doctorDetails, setDoctorDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -590,6 +591,7 @@ export const ClinicianDashboard = ({ onSignOut }: ClinicianDashboardProps) => {
           setSelectedPatientId(null);
         }}
         onSignOut={onSignOut}
+        roleSwitcher={roleSwitcher}
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {renderContent()}

@@ -9,9 +9,10 @@ interface ClinicianNavigationProps {
   currentPage: string;
   onPageChange: (page: string) => void;
   onSignOut?: () => void;
+  roleSwitcher?: React.ReactNode;
 }
 
-export const ClinicianNavigation = ({ currentPage, onPageChange, onSignOut }: ClinicianNavigationProps) => {
+export const ClinicianNavigation = ({ currentPage, onPageChange, onSignOut, roleSwitcher }: ClinicianNavigationProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const menuItems = [
@@ -63,6 +64,11 @@ export const ClinicianNavigation = ({ currentPage, onPageChange, onSignOut }: Cl
                 </Button>
               );
             })}
+            {roleSwitcher && (
+              <div className="ml-2 border-l border-border pl-2">
+                {roleSwitcher}
+              </div>
+            )}
             <Button 
               variant="ghost" 
               size="sm" 
