@@ -14,36 +14,49 @@ import { LandingPage } from "@/components/LandingPage";
 import { AuthPage } from "@/components/AuthPage";
 import { FloatingYvonneButton } from "@/components/FloatingYvonneButton";
 import { PageLoader } from "@/components/LoadingSpinner";
+import { RoleSwitcher } from "@/components/RoleSwitcher";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+type UserRole = "patient" | "clinician" | "admin";
+
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState<string>("");
+  const [userRoles, setUserRoles] = useState<UserRole[]>([]);
+  const [activeRole, setActiveRole] = useState<UserRole | null>(null);
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [showAuth, setShowAuth] = useState(false);
   const [userId, setUserId] = useState<string>("");
   const [isInitializing, setIsInitializing] = useState(true);
   const { toast } = useToast();
 
-  const loadUserRole = useCallback(async (uid: string) => {
+  const loadUserRoles = useCallback(async (uid: string) => {
     try {
       const { data: roleData, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', uid)
-        .maybeSingle();
+        .eq('user_id', uid);
       
       if (error) {
-        console.error('Error loading user role:', error);
+        console.error('Error loading user roles:', error);
         return;
       }
       
-      if (roleData) {
-        setUserRole(roleData.role);
+      if (roleData && roleData.length > 0) {
+        const roles = roleData.map(r => r.role as UserRole);
+        setUserRoles(roles);
+        
+        // Set default active role based on priority: admin > clinician > patient
+        if (roles.includes('admin')) {
+          setActiveRole('admin');
+        } else if (roles.includes('clinician')) {
+          setActiveRole('clinician');
+        } else {
+          setActiveRole('patient');
+        }
       }
     } catch (error) {
-      console.error('Error loading user role:', error);
+      console.error('Error loading user roles:', error);
     }
   }, []);
 
@@ -63,7 +76,7 @@ const Index = () => {
         if (session && mounted) {
           setIsLoggedIn(true);
           setUserId(session.user.id);
-          await loadUserRole(session.user.id);
+          await loadUserRoles(session.user.id);
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -82,11 +95,12 @@ const Index = () => {
         if (event === 'SIGNED_IN' && session) {
           setIsLoggedIn(true);
           setUserId(session.user.id);
-          await loadUserRole(session.user.id);
+          await loadUserRoles(session.user.id);
           setShowAuth(false);
         } else if (event === 'SIGNED_OUT') {
           setIsLoggedIn(false);
-          setUserRole("");
+          setUserRoles([]);
+          setActiveRole(null);
           setUserId("");
           setCurrentPage("dashboard");
           setShowAuth(false);
@@ -100,7 +114,7 @@ const Index = () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [loadUserRole]);
+  }, [loadUserRoles]);
 
   const handleGetStarted = () => {
     setShowAuth(true);
@@ -110,13 +124,23 @@ const Index = () => {
     setShowAuth(false);
   };
 
+  const handleRoleSwitch = (newRole: UserRole) => {
+    setActiveRole(newRole);
+    setCurrentPage("dashboard"); // Reset to dashboard when switching roles
+    toast({
+      title: "Role switched",
+      description: `You are now viewing the ${newRole} dashboard.`,
+    });
+  };
+
   const handleSignOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
       setIsLoggedIn(false);
-      setUserRole("");
+      setUserRoles([]);
+      setActiveRole(null);
       setUserId("");
       setShowAuth(false);
       setCurrentPage("dashboard");
@@ -172,19 +196,41 @@ const Index = () => {
     return <AuthPage onAuthSuccess={handleAuthSuccess} />;
   }
 
-  // Route clinicians to their dedicated dashboard (has its own navigation)
-  if (userRole === 'clinician') {
-    return <ClinicianDashboard onSignOut={handleSignOut} />;
+  // Route based on active role
+  if (activeRole === 'clinician') {
+    return (
+      <ClinicianDashboard 
+        onSignOut={handleSignOut}
+        roleSwitcher={
+          userRoles.length > 1 ? (
+            <RoleSwitcher 
+              currentRole={activeRole} 
+              availableRoles={userRoles} 
+              onRoleChange={handleRoleSwitch} 
+            />
+          ) : undefined
+        }
+      />
+    );
   }
 
   // Route admins to their dedicated dashboard
-  if (userRole === 'admin') {
+  if (activeRole === 'admin') {
     return (
       <div className="min-h-screen bg-background">
         <Navigation 
           currentPage={currentPage} 
           onPageChange={setCurrentPage}
           onSignOut={handleSignOut}
+          roleSwitcher={
+            userRoles.length > 1 ? (
+              <RoleSwitcher 
+                currentRole={activeRole} 
+                availableRoles={userRoles} 
+                onRoleChange={handleRoleSwitch} 
+              />
+            ) : undefined
+          }
         />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <AdminDashboard />
@@ -201,6 +247,15 @@ const Index = () => {
         currentPage={currentPage} 
         onPageChange={setCurrentPage}
         onSignOut={handleSignOut}
+        roleSwitcher={
+          userRoles.length > 1 && activeRole ? (
+            <RoleSwitcher 
+              currentRole={activeRole} 
+              availableRoles={userRoles} 
+              onRoleChange={handleRoleSwitch} 
+            />
+          ) : undefined
+        }
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {renderPatientPage()}

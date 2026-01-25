@@ -6,9 +6,10 @@ interface NavigationProps {
   currentPage: string;
   onPageChange: (page: string) => void;
   onSignOut?: () => void;
+  roleSwitcher?: React.ReactNode;
 }
 
-export const Navigation = ({ currentPage, onPageChange, onSignOut }: NavigationProps) => {
+export const Navigation = ({ currentPage, onPageChange, onSignOut, roleSwitcher }: NavigationProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const menuItems = [
@@ -54,6 +55,11 @@ export const Navigation = ({ currentPage, onPageChange, onSignOut }: NavigationP
                 </Button>
               );
             })}
+            {roleSwitcher && (
+              <div className="ml-2 border-l border-border pl-2">
+                {roleSwitcher}
+              </div>
+            )}
             <Button 
               variant="ghost" 
               size="sm" 
